@@ -1,0 +1,16 @@
+{
+  "name": "3x-ui-portal",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Independent user portal for 3x-ui: registration, balance top-up, plan purchase and automatic client provisioning through the 3x-ui panel API.",
+  "type": "module",
+  "engines": {
+    "node": ">=22.5"
+  },
+  "scripts": {
+    "start": "node --no-warnings server.js",
+    "dev": "node --no-warnings --watch server.js",
+    "test": "node --no-warnings --test test/",
+    "demo": "node --no-warnings scripts/demo.js"
+  }
+}

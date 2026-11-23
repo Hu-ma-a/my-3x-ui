@@ -1,0 +1,46 @@
+# 3x-ui 用户门户 · Docker Compose
+#
+# 最省事的方式（本地构建，不需要先发布镜像）：
+#   cd portal
+#   cp .env.example .env        # 至少填写 PORTAL_SECRET / PORTAL_ADMIN_PASSWORD / XUI_API_TOKEN
+#   docker compose up -d --build
+#
+# 如果已经通过 GitHub Actions 发布了镜像，把 build 改成 image 即可（见下方注释）：
+#   image: ghcr.io/OWNER/REPO-portal:latest
+#
+# 升级：拉取新代码后重新执行 `docker compose up -d --build`；
+# 数据保存在命名卷 portal-data 中，不会丢。
+
+services:
+  portal:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: 3x-ui-portal:local
+    # image: ghcr.io/OWNER/REPO-portal:latest
+    container_name: portal
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${PORTAL_PORT:-8090}:8090"
+    volumes:
+      - portal-data:/data
+    env_file:
+      - .env
+    environment:
+      # 容器内固定值，覆盖 .env 里的本机路径
+      PORTAL_HOST: 0.0.0.0
+      PORTAL_DATA_DIR: /data
+      PORTAL_DB_PATH: /data/portal.db
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:8090/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+volumes:
+  portal-data:

@@ -1,0 +1,90 @@
+name: portal-release
+
+# 发布用户门户：
+#   - 打 tag `portal-v1.0.0` 推送，或手动运行本 workflow
+#   - 产物 1：GitHub Release 里的 portal.tar.gz（供一键安装脚本下载）
+#   - 产物 2：GHCR 镜像 ghcr.io/<owner>/<repo>-portal:latest（供 docker run / compose）
+on:
+  push:
+    tags:
+      - 'portal-v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: '发布版本号（不含前缀），例如 1.0.0'
+        required: true
+        default: '1.0.0'
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  release:
+    name: 打包 portal.tar.gz 并发布 Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 打包（只含运行所需文件）
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          tar -czf dist/portal.tar.gz \
+            --exclude='portal/data' \
+            --exclude='portal/test' \
+            --exclude='portal/node_modules' \
+            --exclude='portal/.env' \
+            portal
+          ls -lh dist/portal.tar.gz
+
+      - name: 发布 Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/portal.tar.gz
+          tag_name: ${{ github.event_name == 'workflow_dispatch' && format('portal-v{0}', github.event.inputs.version) || github.ref_name }}
+          name: 3x-ui 用户门户 ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.version || github.ref_name }}
+          generate_release_notes: true
+
+  docker:
+    name: 构建并推送 GHCR 镜像
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 计算镜像名（GHCR 要求小写）
+        id: image
+        run: |
+          name="ghcr.io/$(printf '%s' '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')-portal"
+          echo "name=${name}" >> "$GITHUB_OUTPUT"
+          echo "镜像：${name}"
+
+      - name: 安装 Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: 登录 GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 生成镜像标签
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ steps.image.outputs.name }}
+          tags: |
+            type=raw,value=latest
+            type=raw,value=${{ github.event_name == 'workflow_dispatch' && github.event.inputs.version || github.ref_name }}
+
+      - name: 构建并推送
+        uses: docker/build-push-action@v6
+        with:
+          context: ./portal
+          file: ./portal/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}

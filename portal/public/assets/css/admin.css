@@ -1,0 +1,164 @@
+/* 管理侧页面级样式：只补布局，组件、颜色与间距全部复用 base.css 的设计令牌。 */
+
+/* 工具栏：一行表单控件（搜索 / 筛选 / 操作），不套卡片 */
+.a-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.a-toolbar .input {
+  flex: 1 1 240px;
+  width: auto;
+}
+
+.a-toolbar .select {
+  flex: 0 0 auto;
+  width: auto;
+  min-width: 150px;
+}
+
+/* 列表的说明文字，保持留白而非卡片头 */
+.a-list-meta {
+  min-height: 18px;
+  margin: 16px 0 4px;
+  color: var(--muted);
+  font-size: 12.5px;
+}
+
+/* 概览指标整块可跳转，不引入卡片或阴影 */
+.a-metric-link {
+  color: inherit;
+  text-decoration: none;
+}
+
+.a-metric-link:hover {
+  text-decoration: none;
+}
+
+.a-metric-link:hover .metric-value {
+  color: var(--accent);
+}
+
+/* 行列表右侧：金额与状态堆叠 */
+.a-row-side {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 5px;
+}
+
+.a-amount {
+  color: var(--ink);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 表格单元格内的主/次文案 */
+.a-cell-title {
+  color: var(--ink);
+  font-weight: 550;
+}
+
+.a-cell-sub {
+  max-width: 320px;
+  margin-top: 2px;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 充值记录顶部的一行小计 */
+.a-subtotal {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 22px;
+  margin-bottom: 18px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.a-strong {
+  color: var(--ink);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.a-strong-success {
+  color: var(--success);
+}
+
+/* 表单：两列网格与底部主操作（不使用悬浮 / sticky 操作条） */
+.a-span-2 {
+  grid-column: 1 / -1;
+}
+
+.a-modal-grid .field,
+.a-settings-grid .field {
+  margin-bottom: 0;
+}
+
+.a-form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 36px;
+}
+
+.a-check-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 18px;
+}
+
+/* 密钥字段旁的「已配置 / 未配置」小字 */
+.a-secret-label {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.a-secret-state {
+  color: var(--muted);
+  font-size: 11.5px;
+  font-weight: 500;
+}
+
+.a-secret-state-set {
+  color: var(--success);
+}
+
+/* 校验失败时的输入框描边 */
+.a-invalid {
+  border-color: var(--danger);
+}
+
+@media (max-width: 760px) {
+  .a-toolbar .input,
+  .a-toolbar .select {
+    flex: 1 1 100%;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .a-toolbar .btn {
+    flex: 1 1 40%;
+  }
+
+  .a-form-actions {
+    justify-content: stretch;
+  }
+
+  .a-form-actions .btn {
+    flex: 1;
+  }
+
+  .a-cell-sub {
+    max-width: 220px;
+  }
+}

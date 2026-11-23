@@ -1,0 +1,96 @@
+# ============================================================
+# 3x-ui 独立用户门户 —— nginx 反向代理示例
+#
+# 用法：
+#   sudo cp deploy/nginx.conf.example /etc/nginx/conf.d/portal.conf
+#   sudo vi /etc/nginx/conf.d/portal.conf     # 改 server_name 与证书路径
+#   sudo nginx -t && sudo systemctl reload nginx
+#
+# 前提：
+#   1. 门户监听 127.0.0.1:8090（PORTAL_HOST=127.0.0.1），不要直接暴露公网端口；
+#   2. 环境变量 PORTAL_TRUST_PROXY=true，否则门户看到的客户端 IP 全是 127.0.0.1，
+#      登录失败限流会误伤所有用户，支付回调 URL 的推断也可能出错；
+#   3. 域名已解析到本机，且已签发 HTTPS 证书（certbot 示例见 docs/DEPLOY.md）。
+# ============================================================
+
+# ---------- HTTP -> HTTPS（证书签发时可用 certbot --webroot 走 80） ----------
+server {
+    listen 80;
+    listen [::]:80;
+    server_name portal.example.com;
+    return 301 https://$host$request_uri;
+}
+
+# ---------- HTTPS 主站 ----------
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    # nginx >= 1.25.1 用 "http2 on;"；更老版本改为 listen 443 ssl http2;
+    http2 on;
+
+    server_name portal.example.com;
+
+    # HTTPS 证书（certbot 默认路径；换成自己的证书路径即可）
+    ssl_certificate     /etc/letsencrypt/live/portal.example.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/portal.example.com/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_prefer_server_ciphers off;
+    ssl_session_cache shared:PortalSSL:10m;
+    ssl_session_timeout 1d;
+
+    # ---------- 安全响应头 ----------
+    # 注意：门户应用自身也会发送 CSP / X-Content-Type-Options / X-Frame-Options 等安全头。
+    # 同名头出现两次时浏览器会叠加处理（CSP 是取交集，最严格者生效）。若发现前端被 CSP 拦，
+    # 优先核对应用发的 CSP，并注释掉这里重复的项；HSTS 保留在 nginx 层最省心。
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-Frame-Options "DENY" always;
+    add_header Referrer-Policy "same-origin" always;
+    add_header Permissions-Policy "geolocation=(), microphone=(), camera=()" always;
+    # 门户是同源静态资源 + 同源 /api；先确认没有内联脚本/样式被拦再启用 CSP：
+    # add_header Content-Security-Policy "default-src 'self'; img-src 'self' data:; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self'" always;
+
+    # 门户只有很小的 JSON/表单请求，收紧请求体
+    client_max_body_size 1m;
+
+    # ---------- 转发头与超时（server 级，下面各 location 未覆盖 proxy_set_header 时会继承） ----------
+    proxy_http_version      1.1;
+    proxy_set_header        Host              $host;
+    proxy_set_header        X-Real-IP         $remote_addr;
+    proxy_set_header        X-Forwarded-For   $proxy_add_x_forwarded_for;
+    proxy_set_header        X-Forwarded-Proto $scheme;
+    proxy_set_header        X-Forwarded-Host  $host;
+    proxy_set_header        Connection        "";
+
+    proxy_connect_timeout   5s;
+    # 门户调用 3x-ui 的默认超时是 15s（XUI_TIMEOUT_MS）；开通、重试可能更久，读超时留足余量
+    proxy_send_timeout      60s;
+    proxy_read_timeout      60s;
+
+    # ---------- 支付回调：无会话、无 CSRF，必须公网可达 ----------
+    # 易支付的异步通知地址：https://<域名>/api/payment/notify/epay
+    # 注意：如果给整站加了 auth_basic / IP 白名单，这里必须豁免，否则支付永远不到账。
+    location /api/payment/notify/ {
+        proxy_pass http://127.0.0.1:8090;
+        access_log off;
+    }
+
+    # 支付网关同步跳回用户浏览器：https://<域名>/api/payment/return/epay
+    location /api/payment/return/ {
+        proxy_pass http://127.0.0.1:8090;
+        access_log off;
+    }
+
+    # 静态资源长缓存（可选）。注意：location 内一旦出现 add_header 会覆盖 server 级安全头，
+    # 所以这里只用 expires，不写 add_header。
+    location ^~ /assets/ {
+        proxy_pass http://127.0.0.1:8090;
+        expires 7d;
+        access_log off;
+    }
+
+    # 其余请求：index.html、/api/*、favicon 等
+    location / {
+        proxy_pass http://127.0.0.1:8090;
+    }
+}
