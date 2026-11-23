@@ -9,6 +9,9 @@ const PROVIDER_LABELS = {
   epay: '易支付',
 };
 
+const ICON_RECHARGE =
+  '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="5" width="19" height="14" rx="2.5"/><path d="M2.5 9.5h19"/><path d="M6 14.5h4"/></svg>';
+
 /** 处理 401/403：跳登录或提示无权限。 */
 function handleAuthError(ctx, err) {
   if (!err) return false;
@@ -37,23 +40,35 @@ export async function render(root, ctx) {
   let items = [];
 
   const wrap = document.createElement('div');
-  wrap.innerHTML = `<header class="page-head">
-      <h1 class="page-title">充值记录</h1>
-      <p class="page-desc">用户全部充值订单与到账情况</p>
+  wrap.innerHTML = `<header class="page-head row-between">
+      <div>
+        <h1 class="page-title">充值记录</h1>
+        <p class="page-desc">用户全部充值订单与到账情况</p>
+      </div>
+      <button type="button" class="btn btn-secondary" data-act="refresh">刷新列表</button>
     </header>
-    <div id="a-recharge-summary" class="a-subtotal"></div>
-    <form class="a-toolbar" data-role="filter" novalidate>
-      <select class="select" name="status" aria-label="按状态筛选">
-        <option value="">全部状态</option>
-        ${options(STATUSES, state.status)}
-      </select>
-      <input class="input" type="search" name="query" placeholder="搜索订单号或用户名" aria-label="搜索订单号或用户名" autocomplete="off">
-      <button class="btn btn-secondary" type="submit">搜索</button>
-      <button class="btn btn-ghost" type="button" data-act="reset-filter">重置</button>
-    </form>
-    <div id="a-recharges-meta" class="a-list-meta"></div>
-    <div id="a-recharges-table"><div class="loading-block">${ui.spinner()}<span>正在加载充值记录…</span></div></div>
-    <div id="a-recharges-pager"></div>`;
+    <section class="card">
+      <div class="card-head">
+        <div>
+          <h2 class="card-title"><span class="a-title-icon">${ICON_RECHARGE}</span>充值明细</h2>
+          <p class="card-desc" id="a-recharges-meta"></p>
+        </div>
+      </div>
+      <div class="card-body">
+        <div id="a-recharge-summary" class="a-subtotal"></div>
+        <form class="a-toolbar" data-role="filter" novalidate>
+          <select class="select" name="status" aria-label="按状态筛选">
+            <option value="">全部状态</option>
+            ${options(STATUSES, state.status)}
+          </select>
+          <input class="input" type="search" name="query" placeholder="搜索订单号或用户名" aria-label="搜索订单号或用户名" autocomplete="off">
+          <button class="btn btn-secondary" type="submit">搜索</button>
+          <button class="btn btn-ghost" type="button" data-act="reset-filter">重置</button>
+        </form>
+        <div id="a-recharges-table"><div class="loading-block">${ui.spinner()}<span>正在加载充值记录…</span></div></div>
+        <div id="a-recharges-pager"></div>
+      </div>
+    </section>`;
   root.replaceChildren(wrap);
 
   const summaryBox = wrap.querySelector('#a-recharge-summary');
@@ -174,7 +189,8 @@ export async function render(root, ctx) {
     const btn = e.target.closest('[data-act]');
     if (!btn) return;
     const act = btn.getAttribute('data-act');
-    if (act === 'reset-filter') resetFilter();
+    if (act === 'refresh') load();
+    else if (act === 'reset-filter') resetFilter();
     else if (act === 'reload') load();
   });
 

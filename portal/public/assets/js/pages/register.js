@@ -8,69 +8,73 @@ export async function render(root, ctx) {
 
   if (ctx.config && ctx.config.registrationEnabled === false) {
     root.innerHTML = `
-      <div class="auth p-register">
+      <div class="auth p-register p-auth">
         <div class="auth-inner">
-          <div class="p-auth-head">
-            <span class="brand p-auth-brand">
-              <span class="brand-dot" aria-hidden="true"></span>
-              <span>${ctx.ui.escape(portalName)}</span>
-            </span>
-            <h1 class="p-auth-title">注册已关闭</h1>
-            <p class="p-auth-sub">当前门户暂未开放注册，请联系管理员开通账号。</p>
-          </div>
-          <div class="alert alert-info">注册通道关闭期间，已有账号仍可正常登录。</div>
-          <div class="p-auth-actions">
-            <a class="btn btn-primary btn-lg btn-block" href="#/login">返回登录</a>
-            <a class="link-btn p-tap" href="#/">返回首页</a>
-          </div>
+          <section class="card auth-card">
+            <div class="auth-head">
+              <span class="brand p-auth-brand">
+                <span class="brand-dot" aria-hidden="true"></span>
+                <span>${ctx.ui.escape(portalName)}</span>
+              </span>
+              <h1 class="auth-title">注册已关闭</h1>
+              <p class="auth-sub">当前门户暂未开放注册，请联系管理员开通账号。</p>
+            </div>
+            <div class="alert alert-info">注册通道关闭期间，已有账号仍可正常登录。</div>
+            <div class="p-auth-actions">
+              <a class="btn btn-primary btn-lg btn-block" href="#/login">返回登录</a>
+              <a class="link-btn p-tap" href="#/">返回首页</a>
+            </div>
+          </section>
         </div>
       </div>`;
     return;
   }
 
   root.innerHTML = `
-    <div class="auth p-register">
+    <div class="auth p-register p-auth">
       <div class="auth-inner">
-        <div class="p-auth-head">
-          <span class="brand p-auth-brand">
-            <span class="brand-dot" aria-hidden="true"></span>
-            <span>${ctx.ui.escape(portalName)}</span>
-          </span>
-          <h1 class="p-auth-title">创建账号</h1>
-          <p class="p-auth-sub">注册后即可购买套餐、查看订阅。</p>
-        </div>
-        <form id="p-register-form" novalidate>
-          <div class="field">
-            <label class="field-label" for="p-register-username">用户名</label>
-            <input class="input" id="p-register-username" name="username" autocomplete="username"
-              placeholder="3–32 位字母、数字或 _ . -" maxlength="32" />
-            <div class="error-text" data-error="username"></div>
+        <section class="card auth-card">
+          <div class="auth-head">
+            <span class="brand p-auth-brand">
+              <span class="brand-dot" aria-hidden="true"></span>
+              <span>${ctx.ui.escape(portalName)}</span>
+            </span>
+            <h1 class="auth-title">创建账号</h1>
+            <p class="auth-sub">注册后即可购买套餐、查看订阅。</p>
           </div>
-          <div class="field">
-            <label class="field-label" for="p-register-email">邮箱 <span class="optional">（选填）</span></label>
-            <input class="input" id="p-register-email" name="email" type="email" autocomplete="email"
-              placeholder="用于找回账号，可留空" maxlength="254" />
-            <div class="error-text" data-error="email"></div>
+          <form id="p-register-form" novalidate>
+            <div class="field">
+              <label class="field-label" for="p-register-username">用户名</label>
+              <input class="input" id="p-register-username" name="username" autocomplete="username"
+                placeholder="3–32 位字母、数字或 _ . -" maxlength="32" />
+              <div class="error-text" data-error="username"></div>
+            </div>
+            <div class="field">
+              <label class="field-label" for="p-register-email">邮箱 <span class="optional">（选填）</span></label>
+              <input class="input" id="p-register-email" name="email" type="email" autocomplete="email"
+                placeholder="用于找回账号，可留空" maxlength="254" />
+              <div class="error-text" data-error="email"></div>
+            </div>
+            <div class="field">
+              <label class="field-label" for="p-register-password">密码</label>
+              <input class="input" id="p-register-password" name="password" type="password"
+                autocomplete="new-password" placeholder="至少 8 位字符" maxlength="72" />
+              <div class="error-text" data-error="password"></div>
+            </div>
+            <div class="field">
+              <label class="field-label" for="p-register-confirm">确认密码</label>
+              <input class="input" id="p-register-confirm" name="confirmPassword" type="password"
+                autocomplete="new-password" placeholder="请再次输入密码" maxlength="72" />
+              <div class="error-text" data-error="confirmPassword"></div>
+            </div>
+            <div class="error-text" id="p-register-error" role="alert"></div>
+            <button class="btn btn-primary btn-lg btn-block" id="p-register-submit" type="submit">注册</button>
+          </form>
+          <div class="auth-foot p-auth-links">
+            <a class="link-btn p-tap" href="#/login">已有账号？直接登录</a>
+            <a class="link-btn p-tap" href="#/">返回首页</a>
           </div>
-          <div class="field">
-            <label class="field-label" for="p-register-password">密码</label>
-            <input class="input" id="p-register-password" name="password" type="password"
-              autocomplete="new-password" placeholder="至少 8 位字符" maxlength="72" />
-            <div class="error-text" data-error="password"></div>
-          </div>
-          <div class="field">
-            <label class="field-label" for="p-register-confirm">确认密码</label>
-            <input class="input" id="p-register-confirm" name="confirmPassword" type="password"
-              autocomplete="new-password" placeholder="请再次输入密码" maxlength="72" />
-            <div class="error-text" data-error="confirmPassword"></div>
-          </div>
-          <div class="error-text" id="p-register-error" role="alert"></div>
-          <button class="btn btn-primary btn-lg btn-block" id="p-register-submit" type="submit">注册</button>
-        </form>
-        <div class="p-auth-links">
-          <a class="link-btn p-tap" href="#/login">已有账号？直接登录</a>
-          <a class="link-btn p-tap" href="#/">返回首页</a>
-        </div>
+        </section>
       </div>
     </div>`;
 

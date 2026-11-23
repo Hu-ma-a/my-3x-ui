@@ -1,5 +1,24 @@
 export const meta = { title: '管理概览', auth: true, admin: true };
 
+const ICON = {
+  users:
+    '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 20v-1.5a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4V20"/><circle cx="9" cy="7" r="3.2"/><path d="M22 20v-1.5a4 4 0 0 0-3-3.9"/><path d="M16.5 4.2a3.2 3.2 0 0 1 0 5.6"/></svg>',
+  orders:
+    '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2V3Z"/><path d="M9 8h6M9 12h6"/></svg>',
+  revenue:
+    '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7.5A2.5 2.5 0 0 1 5.5 5H19a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5.5A2.5 2.5 0 0 1 3 16.5v-9Z"/><path d="M3 9h18"/><path d="M16 14.5h2"/></svg>',
+  trend:
+    '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17l6-6 4 4 7-7"/><path d="M14 8h6v6"/></svg>',
+  recharge:
+    '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="5" width="19" height="14" rx="2.5"/><path d="M2.5 9.5h19"/><path d="M6 14.5h4"/></svg>',
+  pending:
+    '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>',
+  arrow:
+    '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17 17 7"/><path d="M8 7h9v9"/></svg>',
+  link:
+    '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 15l6-6"/><path d="M10.5 6.5 12 5a3.5 3.5 0 0 1 5 5l-1.5 1.5"/><path d="M13.5 17.5 12 19a3.5 3.5 0 0 1-5-5l1.5-1.5"/></svg>',
+};
+
 /** 处理 401/403：跳登录或提示无权限。 */
 function handleAuthError(ctx, err) {
   if (!err) return false;
@@ -30,23 +49,37 @@ export async function render(root, ctx) {
         <h1 class="page-title">管理概览</h1>
         <p class="page-desc" id="a-overview-desc">门户运营数据与 3x-ui 连接状态，数据实时拉取</p>
       </div>
-      <button type="button" class="btn btn-secondary btn-sm" data-act="refresh">刷新数据</button>
+      <button type="button" class="btn btn-secondary" data-act="refresh">刷新数据</button>
     </header>
-    <div id="a-stats"><div class="loading-block">${ui.spinner()}<span>正在加载运营数据…</span></div></div>
-    <section class="section">
-      <div class="section-head">
-        <h2 class="section-title">最近订单</h2>
-        <a class="link-btn" href="#/admin/orders">全部订单</a>
+    <div class="stack-gap">
+      <div id="a-stats"><div class="loading-block">${ui.spinner()}<span>正在加载运营数据…</span></div></div>
+      <div class="card-grid cols-2">
+        <section class="card">
+          <div class="card-head">
+            <div>
+              <h2 class="card-title"><span class="a-title-icon">${ICON.orders}</span>最近订单</h2>
+              <p class="card-desc">最新 10 条订单，点击可查看全部</p>
+            </div>
+            <a class="link-btn" href="#/admin/orders">全部订单</a>
+          </div>
+          <div class="card-body">
+            <div id="a-recent"><div class="loading-block">${ui.spinner()}<span>正在加载最近订单…</span></div></div>
+          </div>
+        </section>
+        <section class="card">
+          <div class="card-head">
+            <div>
+              <h2 class="card-title"><span class="a-title-icon">${ICON.link}</span>3x-ui 连接</h2>
+              <p class="card-desc">通过面板 API 读取入站与订阅信息</p>
+            </div>
+            <button type="button" class="btn btn-secondary btn-sm" data-act="test-xui">重新测试</button>
+          </div>
+          <div class="card-body">
+            <div id="a-xui"><div class="loading-block">${ui.spinner()}<span>正在测试连接…</span></div></div>
+          </div>
+        </section>
       </div>
-      <div id="a-recent"><div class="loading-block">${ui.spinner()}<span>正在加载最近订单…</span></div></div>
-    </section>
-    <section class="section">
-      <div class="section-head">
-        <h2 class="section-title">3x-ui 连接</h2>
-        <button type="button" class="btn btn-secondary btn-sm" data-act="test-xui">重新测试</button>
-      </div>
-      <div id="a-xui"><div class="loading-block">${ui.spinner()}<span>正在测试连接…</span></div></div>
-    </section>`;
+    </div>`;
   root.replaceChildren(wrap);
 
   const statsBox = wrap.querySelector('#a-stats');
@@ -64,12 +97,16 @@ export async function render(root, ctx) {
   }
 
   function metricHtml(item) {
-    const inner = `<div class="metric-value${item.warn ? ' text-warning' : ''}">${esc(item.value)}</div>
+    const inner = `<div class="a-metric-top">
+        <span class="a-metric-icon">${item.icon}</span>
+        ${item.href ? `<span class="a-metric-arrow">${ICON.arrow}</span>` : ''}
+      </div>
+      <div class="metric-value${item.warn ? ' text-warning' : ''}">${esc(item.value)}</div>
       <div class="metric-label">${esc(item.label)}</div>
       ${item.hint ? `<div class="metric-hint">${esc(item.hint)}</div>` : ''}`;
     return item.href
-      ? `<a class="metric a-metric-link" href="${item.href}">${inner}</a>`
-      : `<div class="metric">${inner}</div>`;
+      ? `<a class="card card-interactive a-metric a-metric-link" href="${item.href}">${inner}</a>`
+      : `<div class="card a-metric">${inner}</div>`;
   }
 
   async function loadStats() {
@@ -83,22 +120,29 @@ export async function render(root, ctx) {
       const recharges = data.recharges || {};
       const pending = Number(orders.pending) || 0;
       const items = [
-        { label: '用户数', value: int(users.total), hint: `活跃 ${int(users.active)}`, href: '#/admin/users' },
-        { label: '订单数', value: int(orders.total), hint: `今日新增 ${int(orders.today)}`, href: '#/admin/orders' },
-        { label: '总收入', value: money(revenue.totalCents), hint: `本月 ${money(revenue.monthCents)}` },
-        { label: '今日收入', value: money(revenue.todayCents), hint: '按支付时间统计' },
-        { label: '充值总额', value: money(recharges.totalCents), hint: `今日充值 ${money(recharges.todayCents)}`, href: '#/admin/recharges' },
+        { label: '用户数', value: int(users.total), hint: `活跃 ${int(users.active)}`, href: '#/admin/users', icon: ICON.users },
+        { label: '订单数', value: int(orders.total), hint: `今日新增 ${int(orders.today)}`, href: '#/admin/orders', icon: ICON.orders },
+        { label: '总收入', value: money(revenue.totalCents), hint: `本月 ${money(revenue.monthCents)}`, icon: ICON.revenue },
+        { label: '今日收入', value: money(revenue.todayCents), hint: '按支付时间统计', icon: ICON.trend },
+        {
+          label: '充值总额',
+          value: money(recharges.totalCents),
+          hint: `今日充值 ${money(recharges.todayCents)}`,
+          href: '#/admin/recharges',
+          icon: ICON.recharge,
+        },
         {
           label: '待处理订单',
           value: int(pending),
           hint: pending > 0 ? '待支付或待开通，建议尽快处理' : '暂无待处理订单',
           href: '#/admin/orders?status=pending',
+          icon: ICON.pending,
           warn: pending > 0,
         },
       ];
       const desc = wrap.querySelector('#a-overview-desc');
       if (desc) desc.textContent = `门户运营数据 · 套餐 ${int(plans.total)} 个（启用 ${int(plans.enabled)}）· 数据实时拉取`;
-      statsBox.innerHTML = `<div class="metrics">${items.map(metricHtml).join('')}</div>`;
+      statsBox.innerHTML = `<div class="card-grid cols-3">${items.map(metricHtml).join('')}</div>`;
     } catch (err) {
       if (handleAuthError(ctx, err)) return;
       statsBox.innerHTML = errorHtml(err);

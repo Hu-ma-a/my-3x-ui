@@ -29,71 +29,72 @@ export async function render(root, ctx) {
   function pageHtml() {
     return `
       <div class="p-recharge">
-        <div class="p-narrow">
-          <div class="page-head">
-            <h1 class="page-title">在线充值</h1>
-            <p class="page-desc">充值金额进入账户余额，可直接用于购买套餐。</p>
-          </div>
-          <section class="section">
-            <div class="field">
-              <label class="field-label" for="p-recharge-custom">充值金额（元）</label>
-              <div class="input-wrap p-amount-wrap">
-                <span class="input-prefix" aria-hidden="true">¥</span>
-                <input class="input p-amount-input" id="p-recharge-custom" type="number" inputmode="decimal"
-                  min="${minCents / 100}" max="${maxCents / 100}" step="0.01" placeholder="请输入充值金额" />
+        <div class="page-head center">
+          <span class="pill-label">充值</span>
+          <h1 class="display">充值到账户余额</h1>
+          <p class="page-desc">充值金额进入账户余额，可直接用于购买套餐。</p>
+        </div>
+        <div class="p-recharge-inner">
+          <section class="card p-recharge-card">
+            <div class="card-body">
+              <div class="field">
+                <label class="field-label" for="p-recharge-custom">充值金额（元）</label>
+                <div class="input-wrap p-amount-wrap">
+                  <span class="input-prefix" aria-hidden="true">¥</span>
+                  <input class="input p-amount-input" id="p-recharge-custom" type="number" inputmode="decimal"
+                    min="${minCents / 100}" max="${maxCents / 100}" step="0.01" placeholder="请输入充值金额" />
+                </div>
+                <div class="chip-group p-recharge-chips">
+                  ${QUICK_AMOUNTS.map((cents) => `
+                    <button type="button" class="chip ${state.amountCents === cents ? 'selected' : ''}" data-amount="${cents}">
+                      ${ctx.ui.money(cents)}
+                    </button>`).join('')}
+                </div>
+                <div class="hint">单次充值范围 ${ctx.ui.money(minCents)} – ${ctx.ui.money(maxCents)}</div>
+                <div class="error-text" data-error="amount"></div>
               </div>
-              <div class="chip-group p-recharge-chips">
-                ${QUICK_AMOUNTS.map((cents) => `
-                  <button type="button" class="chip ${state.amountCents === cents ? 'selected' : ''}" data-amount="${cents}">
-                    ${ctx.ui.money(cents)}
-                  </button>`).join('')}
+              <hr class="divider">
+              <div class="p-recharge-method">
+                <h2 class="card-title p-section-label">支付方式</h2>
+                ${providers.length > 0
+                  ? `<div class="choice-list">
+                      ${providers.map((item) => `
+                        <button type="button" class="choice ${state.provider === item.id ? 'selected' : ''}"
+                          data-provider="${ctx.ui.escape(item.id)}">
+                          <span class="choice-radio" aria-hidden="true"></span>
+                          <span class="choice-main p-choice-stack">
+                            <span class="choice-title">${ctx.ui.escape(item.label || item.id)}</span>
+                            <span class="choice-sub">${ctx.ui.escape(providerSubtitle(item))}</span>
+                          </span>
+                        </button>`).join('')}
+                    </div>`
+                  : '<div class="alert alert-danger">暂未配置可用的在线支付方式，请联系管理员。</div>'}
+                <div class="error-text" data-error="provider"></div>
               </div>
-              <div class="hint">单次充值范围 ${ctx.ui.money(minCents)} – ${ctx.ui.money(maxCents)}</div>
-              <div class="error-text" data-error="amount"></div>
+              <hr class="divider">
+              <div class="row-between p-recharge-total">
+                <span class="text-muted">应付金额</span>
+                <strong id="p-recharge-total">${ctx.ui.money(state.amountCents)}</strong>
+              </div>
+              <div class="error-text" id="p-recharge-error" role="alert"></div>
+              <button class="btn btn-primary btn-lg btn-block" id="p-recharge-submit" type="button" ${providers.length > 0 ? '' : 'disabled'}>立即充值</button>
+              <p class="hint text-center p-recharge-secure">支付成功后余额自动到账，无需人工确认。</p>
             </div>
           </section>
-          <section class="section">
-            <div class="section-head">
-              <h2 class="section-title">支付方式</h2>
+          <section class="card p-recharge-note">
+            <div class="card-head">
+              <h2 class="card-title">余额说明</h2>
+              <span class="badge badge-muted">当前余额 ${ctx.ui.money(me.balanceCents || 0)}</span>
             </div>
-            <div class="p-pay-body">
-              ${providers.length > 0
-                ? `<div class="choice-list">
-                    ${providers.map((item) => `
-                      <button type="button" class="choice ${state.provider === item.id ? 'selected' : ''}"
-                        data-provider="${ctx.ui.escape(item.id)}">
-                        <span class="choice-radio" aria-hidden="true"></span>
-                        <span class="choice-main p-choice-stack">
-                          <span class="choice-title">${ctx.ui.escape(item.label || item.id)}</span>
-                          <span class="choice-sub">${ctx.ui.escape(providerSubtitle(item))}</span>
-                        </span>
-                      </button>`).join('')}
-                  </div>`
-                : '<div class="alert alert-danger">暂未配置可用的在线支付方式，请联系管理员。</div>'}
-              <div class="error-text" data-error="provider"></div>
+            <div class="card-body">
+              <ul class="check-list p-tip-list">
+                <li class="check-item">充值金额实时进入账户余额，可直接用于购买套餐</li>
+                <li class="check-item">余额支付套餐会立即开通，无需等待</li>
+                <li class="check-item">在线支付成功后自动到账，人工转账需管理员确认</li>
+              </ul>
+              <div id="p-recharge-notice" class="p-recharge-notice"></div>
+              <a class="link-btn p-tap p-recharge-records" href="#/orders">查看充值记录</a>
             </div>
-          </section>
-          <section class="section">
-            <div class="row-between p-recharge-total">
-              <span class="text-muted">应付金额</span>
-              <strong id="p-recharge-total">${ctx.ui.money(state.amountCents)}</strong>
-            </div>
-            <div class="error-text" id="p-recharge-error" role="alert"></div>
-            <button class="btn btn-primary btn-lg btn-block" id="p-recharge-submit" type="button" ${providers.length > 0 ? '' : 'disabled'}>立即充值</button>
-            <p class="hint text-center p-recharge-secure">支付成功后余额自动到账，无需人工确认。</p>
-          </section>
-          <section class="section">
-            <div class="section-head">
-              <h2 class="section-title">余额说明</h2>
-              <span class="text-sm text-muted">当前余额 ${ctx.ui.money(me.balanceCents || 0)}</span>
-            </div>
-            <ul class="p-tip-list">
-              <li>充值金额实时进入账户余额，可直接用于购买套餐；</li>
-              <li>余额支付套餐会立即开通，无需等待；</li>
-              <li>在线支付成功后自动到账，人工转账需管理员确认。</li>
-            </ul>
-            <div id="p-recharge-notice" class="p-recharge-notice"></div>
-            <a class="link-btn p-tap p-recharge-records" href="#/orders">查看充值记录</a>
           </section>
         </div>
       </div>`;

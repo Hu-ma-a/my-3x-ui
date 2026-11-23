@@ -1,5 +1,12 @@
 export const meta = { title: '购买套餐', auth: true, admin: false };
 
+// 方案图标：1.5px 描边、currentColor，按卡片顺序循环使用。
+const PLAN_ICONS = [
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c2.4 2.3 3.7 5.2 3.7 8.5s-1.3 6.2-3.7 8.5c-2.4-2.3-3.7-5.2-3.7-8.5s1.3-6.2 3.7-8.5Z"/></svg>',
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2.8 4.8 13.4h5.6L11 21.2l8.2-10.6h-5.6L13 2.8Z"/></svg>',
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9L12 3Z"/><path d="m4 7.5 8 4.5 8-4.5M12 12v9"/></svg>',
+];
+
 export async function render(root, ctx) {
   const state = {
     plans: [],
@@ -174,44 +181,60 @@ export async function render(root, ctx) {
   }
 
   function renderPage() {
-    const featuredIndex = state.plans.findIndex((item) => item && item.featured);
-    const primaryIndex = featuredIndex >= 0 ? featuredIndex : 0;
+    const featuredIndex = state.plans.findIndex((plan) => plan && plan.featured);
+    const featuredPlan = featuredIndex >= 0 ? state.plans[featuredIndex] : state.plans[0];
+    // 参考图里推荐卡在中间：有推荐套餐且不少于 3 个时，仅调整展示顺序（不改数据顺序）。
+    const displayPlans = featuredIndex >= 0 && state.plans.length >= 3
+      ? moveToCenter(state.plans, featuredIndex)
+      : state.plans;
     root.innerHTML = `
       <div class="p-plans">
-        <div class="page-head">
-          <h1 class="page-title">购买套餐</h1>
-          <p class="page-desc">选择适合的套餐，支付成功后自动开通并生成订阅链接。</p>
+        <div class="page-head center">
+          <span class="pill-label">套餐</span>
+          <h1 class="display">选择适合你的套餐</h1>
+          <p class="page-desc">按月订阅，支付成功后自动开通并生成订阅链接；余额支付立即生效。</p>
         </div>
         ${state.manual ? manualHtml() : ''}
-        <section class="section">
-          <div class="section-head">
-            <h2 class="section-title">支付方式</h2>
-            <span class="text-sm text-muted">当前余额 ${ctx.ui.money(me.balanceCents || 0)}</span>
-          </div>
-          <div class="p-pay-body">
-            <div class="chip-group p-pay-switch" role="group" aria-label="支付方式">
-              <button type="button" class="chip ${state.method === 'balance' ? 'selected' : ''}"
-                data-action="method" data-method="balance" ${state.busy ? 'disabled' : ''}>余额支付</button>
-              <button type="button" class="chip ${state.method === 'online' ? 'selected' : ''}"
-                data-action="method" data-method="online" ${state.busy ? 'disabled' : ''}>在线支付</button>
-            </div>
-            ${state.method === 'balance' ? balanceHintHtml() : providerHtml()}
-          </div>
-        </section>
-        <section class="section">
-          <div class="section-head">
-            <h2 class="section-title">套餐</h2>
-            <span class="text-sm text-muted">${state.plans.length ? `共 ${state.plans.length} 个可选套餐` : ''}</span>
-          </div>
-          ${state.plans.length
-            ? `<div class="plan-list">${state.plans.map((plan, index) => planRowHtml(plan, index === primaryIndex)).join('')}</div>`
-            : ctx.ui.empty({
-              title: '暂无可购买套餐',
-              desc: '管理员还未上架套餐，请稍后再来看看。',
-              actionHtml: '<a class="btn btn-secondary" href="#/dashboard">返回我的账号</a>',
-            })}
-        </section>
+        ${payCardHtml()}
+        ${state.plans.length
+          ? `<div class="price-grid p-price-grid">
+              ${displayPlans.map((plan, index) => priceCardHtml(plan, plan === featuredPlan, index)).join('')}
+            </div>`
+          : `<section class="card p-plans-empty">
+              <div class="card-body">
+                ${ctx.ui.empty({
+                  title: '暂无可购买套餐',
+                  desc: '管理员还未上架套餐，请稍后再来看看。',
+                  actionHtml: '<a class="btn btn-secondary" href="#/dashboard">返回我的账号</a>',
+                })}
+              </div>
+            </section>`}
       </div>`;
+  }
+
+  function moveToCenter(plans, featuredIndex) {
+    const ordered = plans.slice();
+    const [featured] = ordered.splice(featuredIndex, 1);
+    ordered.splice(Math.floor(ordered.length / 2), 0, featured);
+    return ordered;
+  }
+
+  function payCardHtml() {
+    return `<section class="card p-pay-card">
+      <div class="card-body p-pay-body">
+        <div class="p-pay-head">
+          <h2 class="card-title">支付方式</h2>
+          <span class="badge badge-info">余额 ${ctx.ui.money(me.balanceCents || 0)}</span>
+        </div>
+        <div class="chip-group p-pay-switch" role="group" aria-label="支付方式">
+          <button type="button" class="chip ${state.method === 'balance' ? 'selected' : ''}"
+            data-action="method" data-method="balance" ${state.busy ? 'disabled' : ''}>余额支付</button>
+          <button type="button" class="chip ${state.method === 'online' ? 'selected' : ''}"
+            data-action="method" data-method="online" ${state.busy ? 'disabled' : ''}>在线支付</button>
+        </div>
+        ${state.method === 'balance' ? balanceHintHtml() : providerHtml()}
+      </div>
+    </section>`;
   }
 
   function balanceHintHtml() {
@@ -238,47 +261,60 @@ export async function render(root, ctx) {
       <p class="hint p-pay-hint">在线支付完成后套餐自动开通；若长时间未到账，请联系管理员。</p>`;
   }
 
-  function planRowHtml(plan, primary) {
+  function priceCardHtml(plan, featured, index) {
     const owned = Boolean(
       (me.planId && me.planId === plan.id) || (me.planName && me.planName === plan.name),
     );
     const trafficText = plan.trafficBytes > 0
       ? ctx.ui.bytes(plan.trafficBytes)
       : plan.trafficGb > 0 ? `${plan.trafficGb} GB` : '不限流量';
-    const deviceText = plan.deviceLimit ? `${plan.deviceLimit} 台` : '不限';
-    return `<div class="plan-row p-plan-row">
-      <div class="plan-main">
-        <div class="plan-name">${ctx.ui.escape(plan.name)}${plan.featured ? '<span class="plan-tag">推荐</span>' : ''}</div>
-        <p class="plan-desc">${plan.description ? ctx.ui.escape(plan.description) : '暂无套餐描述'}</p>
-        <div class="plan-meta">
-          <span><b>${trafficText}</b> 流量</span>
-          <span><b>${plan.days} 天</b> 有效期</span>
-          <span><b>${deviceText}</b> 设备</span>
-        </div>
+    const deviceText = plan.deviceLimit ? `${plan.deviceLimit} 台设备` : '设备不限';
+    const description = plan.description
+      ? ctx.ui.escape(plan.description)
+      : `${plan.days} 天 · ${trafficText} · ${deviceText}`;
+    const features = [
+      trafficText === '不限流量' ? '不限流量额度' : `${trafficText} 流量额度`,
+      `${plan.days} 天有效期`,
+      deviceText,
+      '支付成功后自动开通',
+      '订阅链接自动生成',
+    ];
+    const icon = PLAN_ICONS[index % PLAN_ICONS.length];
+    return `<article class="price-card ${featured ? 'featured' : ''}">
+      ${featured ? '<div class="price-topbar">最受欢迎</div>' : ''}
+      <div class="price-icon" aria-hidden="true">${icon}</div>
+      <div class="p-plan-name-row">
+        <h3 class="price-name">${ctx.ui.escape(plan.name)}</h3>
+        ${owned ? '<span class="price-plan-tag">已购</span>' : ''}
       </div>
-      <div class="plan-side">
-        <div class="plan-price">${ctx.ui.money(plan.priceCents)}<small> / ${plan.days} 天</small></div>
-        <button type="button" class="btn ${primary ? 'btn-primary' : 'btn-secondary'}"
-          data-action="buy" data-plan-id="${ctx.ui.escape(String(plan.id))}" ${state.busy ? 'disabled' : ''}>
-          ${owned ? '续费' : '立即购买'}
-        </button>
-      </div>
-    </div>`;
+      <div class="price-amount">${ctx.ui.money(plan.priceCents)}<small>/ 期</small></div>
+      <p class="price-desc">${description}</p>
+      <button type="button" class="btn btn-block price-cta ${featured ? 'btn-accent' : 'btn-primary'}"
+        data-action="buy" data-plan-id="${ctx.ui.escape(String(plan.id))}" ${state.busy ? 'disabled' : ''}>
+        ${owned ? '续费' : '立即购买'}
+      </button>
+      <hr class="price-divider">
+      <ul class="check-list">
+        ${features.map((item, featureIndex) => `<li class="check-item ${featureIndex === 0 ? 'strong' : ''}">${ctx.ui.escape(item)}</li>`).join('')}
+      </ul>
+    </article>`;
   }
 
   function manualHtml() {
-    return `<div class="p-manual" id="p-manual-box">
-      <div class="alert alert-info">
-        <div class="stack-sm">
-          <strong>订单 ${ctx.ui.escape(state.manual.orderNo)} 待支付 ${ctx.ui.money(state.manual.amountCents)}</strong>
-          <div class="text-sm">${ctx.ui.escape(state.manual.instructions)}</div>
-          <div class="row p-manual-actions">
-            <a class="btn btn-secondary" href="#/orders?orderNo=${encodeURIComponent(state.manual.orderNo)}">查看订单</a>
-            <button class="btn btn-ghost" type="button" data-action="dismiss-manual">关闭提示</button>
+    return `<section class="card p-manual-card" id="p-manual-box">
+      <div class="card-body p-manual-body">
+        <div class="alert alert-info">
+          <div class="stack-sm">
+            <strong>订单 ${ctx.ui.escape(state.manual.orderNo)} 待支付 ${ctx.ui.money(state.manual.amountCents)}</strong>
+            <div class="text-sm">${ctx.ui.escape(state.manual.instructions)}</div>
+            <div class="row p-manual-actions">
+              <a class="btn btn-secondary btn-sm" href="#/orders?orderNo=${encodeURIComponent(state.manual.orderNo)}">查看订单</a>
+              <button class="btn btn-ghost btn-sm" type="button" data-action="dismiss-manual">关闭提示</button>
+            </div>
           </div>
         </div>
       </div>
-    </div>`;
+    </section>`;
   }
 
   function loadingHtml() {
@@ -288,11 +324,15 @@ export async function render(root, ctx) {
   function errorHtml(err) {
     const message = (err && err.message) || '套餐加载失败，请稍后重试';
     return `<div class="p-error">
-      <div class="alert alert-danger">${ctx.ui.escape(message)}</div>
-      <div class="row mt-2">
-        <button class="btn btn-primary" type="button" data-action="retry">重试</button>
-        <a class="btn btn-secondary" href="#/dashboard">返回我的账号</a>
-      </div>
+      <section class="card">
+        <div class="card-body">
+          <div class="alert alert-danger">${ctx.ui.escape(message)}</div>
+          <div class="row mt-2">
+            <button class="btn btn-primary" type="button" data-action="retry">重试</button>
+            <a class="btn btn-secondary" href="#/dashboard">返回我的账号</a>
+          </div>
+        </div>
+      </section>
     </div>`;
   }
 }

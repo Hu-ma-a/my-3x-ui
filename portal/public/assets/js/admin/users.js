@@ -15,6 +15,9 @@ function handleAuthError(ctx, err) {
   return false;
 }
 
+const ICON_USER =
+  '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.6"/><path d="M4.5 20.5a7.5 7.5 0 0 1 15 0"/></svg>';
+
 const CLOSE_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>';
 
 export async function render(root, ctx) {
@@ -27,23 +30,35 @@ export async function render(root, ctx) {
   let items = [];
 
   const wrap = document.createElement('div');
-  wrap.innerHTML = `<header class="page-head">
-      <h1 class="page-title">用户管理</h1>
-      <p class="page-desc">搜索用户、启用或禁用账号、调整余额与重置密码</p>
+  wrap.innerHTML = `<header class="page-head row-between">
+      <div>
+        <h1 class="page-title">用户管理</h1>
+        <p class="page-desc">搜索用户、启用或禁用账号、调整余额与重置密码</p>
+      </div>
+      <button type="button" class="btn btn-secondary" data-act="refresh">刷新列表</button>
     </header>
-    <form class="a-toolbar" data-role="filter" novalidate>
-      <input class="input" type="search" name="query" placeholder="搜索用户名或邮箱" aria-label="搜索用户名或邮箱" autocomplete="off">
-      <select class="select" name="status" aria-label="按状态筛选">
-        <option value="">全部状态</option>
-        <option value="active">正常</option>
-        <option value="disabled">已禁用</option>
-      </select>
-      <button class="btn btn-secondary" type="submit">搜索</button>
-      <button class="btn btn-ghost" type="button" data-act="reset-filter">重置</button>
-    </form>
-    <div id="a-users-meta" class="a-list-meta"></div>
-    <div id="a-users-table"><div class="loading-block">${ui.spinner()}<span>正在加载用户…</span></div></div>
-    <div id="a-users-pager"></div>`;
+    <section class="card">
+      <div class="card-head">
+        <div>
+          <h2 class="card-title"><span class="a-title-icon">${ICON_USER}</span>用户列表</h2>
+          <p class="card-desc" id="a-users-meta"></p>
+        </div>
+      </div>
+      <div class="card-body">
+        <form class="a-toolbar" data-role="filter" novalidate>
+          <input class="input" type="search" name="query" placeholder="搜索用户名或邮箱" aria-label="搜索用户名或邮箱" autocomplete="off">
+          <select class="select" name="status" aria-label="按状态筛选">
+            <option value="">全部状态</option>
+            <option value="active">正常</option>
+            <option value="disabled">已禁用</option>
+          </select>
+          <button class="btn btn-secondary" type="submit">搜索</button>
+          <button class="btn btn-ghost" type="button" data-act="reset-filter">重置</button>
+        </form>
+        <div id="a-users-table"><div class="loading-block">${ui.spinner()}<span>正在加载用户…</span></div></div>
+        <div id="a-users-pager"></div>
+      </div>
+    </section>`;
   root.replaceChildren(wrap);
 
   const tableBox = wrap.querySelector('#a-users-table');
@@ -326,7 +341,8 @@ export async function render(root, ctx) {
     const btn = e.target.closest('[data-act]');
     if (!btn) return;
     const act = btn.getAttribute('data-act');
-    if (act === 'reset-filter') resetFilter();
+    if (act === 'refresh') load();
+    else if (act === 'reset-filter') resetFilter();
     else if (act === 'reload') load();
     else if (act === 'toggle-status') toggleStatus(btn);
     else if (act === 'adjust-balance') {

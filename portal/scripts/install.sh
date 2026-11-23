@@ -31,6 +31,7 @@ NO_NODE_INSTALL=0
 NODE_BIN=""
 REPO="${PORTAL_REPO:-}"
 REF="${PORTAL_REF:-main}"
+GH_MIRROR="${PORTAL_GH_MIRROR:-}"
 IMAGE="${PORTAL_IMAGE:-}"
 PORT="${PORTAL_PORT:-$DEFAULT_PORT}"
 BIND_HOST="${PORTAL_BIND_HOST:-0.0.0.0}"
@@ -81,6 +82,8 @@ usage() {
 安装与升级
   --repo OWNER/REPO     源码 GitHub 仓库（curl 方式必填；本地目录执行可省略）
   --ref REF             源码分支或标签，默认 main
+  --gh-mirror URL       服务器访问 GitHub 困难时使用镜像前缀，例如 https://ghproxy.net/
+                        （脚本下载 Release / 源码时会拼成 URL: https://ghproxy.net/https://github.com/...）
   --upgrade             升级：保留 data/ 与 /etc/portal/portal.env，只替换程序文件
   --uninstall           停止并移除服务（保留数据目录，打印路径）
 
@@ -120,6 +123,7 @@ while [ $# -gt 0 ]; do
   case "$1" in
     --repo) REPO="${2:-}"; shift 2 ;;
     --ref) REF="${2:-}"; shift 2 ;;
+    --gh-mirror) GH_MIRROR="${2:-}"; shift 2 ;;
     --image) IMAGE="${2:-}"; shift 2 ;;
     --dir) PORTAL_DIR="${2:-}"; shift 2 ;;
     --port) PORT="${2:-}"; shift 2 ;;
@@ -423,12 +427,20 @@ fetch_source() {
     [ -n "$REPO" ] || die "无法确定源码来源：请加 --repo OWNER/REPO 指定 GitHub 仓库，或在代码目录内直接运行本脚本。"
     blue "从 GitHub 下载源码：$REPO（$REF）"
     local tmp_tgz="${dest}.download.tgz"
-    if curl -fsSL -o "$tmp_tgz" "https://github.com/${REPO}/releases/latest/download/portal.tar.gz" 2>/dev/null; then
+    local mirror=""
+    if [ -n "$GH_MIRROR" ]; then
+      mirror="${GH_MIRROR%/}"
+      blue "使用 GitHub 镜像前缀：$mirror"
+    fi
+    local release_url="${mirror:+$mirror/}https://github.com/${REPO}/releases/latest/download/portal.tar.gz"
+    local branch_url="${mirror:+$mirror/}https://codeload.github.com/${REPO}/tar.gz/refs/heads/${REF}"
+    local tag_url="${mirror:+$mirror/}https://codeload.github.com/${REPO}/tar.gz/refs/tags/${REF}"
+    if curl -fsSL -o "$tmp_tgz" "$release_url" 2>/dev/null; then
       tar -xzf "$tmp_tgz" -C "$dest"
     else
-      if ! curl -fsSL -o "$tmp_tgz" "https://codeload.github.com/${REPO}/tar.gz/refs/heads/${REF}"; then
-        curl -fsSL -o "$tmp_tgz" "https://codeload.github.com/${REPO}/tar.gz/refs/tags/${REF}" || \
-          die "下载源码失败：请确认仓库 $REPO 存在、分支/标签 $REF 正确，且服务器能访问 GitHub。"
+      if ! curl -fsSL -o "$tmp_tgz" "$branch_url"; then
+        curl -fsSL -o "$tmp_tgz" "$tag_url" || \
+          die "下载源码失败：请确认仓库 $REPO 存在、分支/标签 $REF 正确；若服务器访问 GitHub 困难，可加 --gh-mirror https://ghproxy.net/"
       fi
       local extract_dir="${dest}.src"
       rm -rf "$extract_dir"

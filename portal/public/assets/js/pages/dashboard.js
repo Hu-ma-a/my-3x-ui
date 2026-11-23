@@ -156,56 +156,85 @@ export async function render(root, ctx) {
       warnings.push(`3x-ui 实时数据暂不可用${reason}，以下展示最近一次购买的缓存信息。`);
     }
     const warningHtml = warnings.length
-      ? `<div class="p-dash-notice"><div class="alert alert-warning"><div class="stack-sm">${warnings.map((item) => `<div>${item}</div>`).join('')}</div></div></div>`
+      ? `<section class="card p-notice-card">
+          <div class="card-body p-notice-body">
+            <div class="alert alert-warning">
+              <div class="stack-sm">${warnings.map((item) => `<div>${item}</div>`).join('')}</div>
+            </div>
+          </div>
+        </section>`
       : '';
 
-    const heroHtml = `
-      <header class="hero">
-        <p class="eyebrow">你好，${ctx.ui.escape(user.username || '用户')}</p>
-        <h1 class="display p-dash-title">${ctx.ui.escape(planName || '还没有开通套餐')}</h1>
-        <div class="hero-meta">
-          <span>${expiresAt ? `${ctx.ui.dateTime(expiresAt)} 到期 · ${ctx.ui.relative(expiresAt)}` : '当前未开通套餐'}</span>
-          <span class="sep" aria-hidden="true"></span>
-          <span>${deviceText}</span>
-          <span class="sep" aria-hidden="true"></span>
-          <span>${planBadge}</span>
-          <span class="sep" aria-hidden="true"></span>
-          <span class="p-balance">余额 <b class="p-balance-value">${ctx.ui.money(user.balanceCents || 0)}</b></span>
+    const headHtml = `
+      <header class="page-head p-dash-head">
+        <div class="p-dash-head-main">
+          <span class="pill-label">我的账号</span>
+          <h1 class="page-title p-dash-title">你好，${ctx.ui.escape(user.username || '用户')}</h1>
+          <p class="page-desc p-dash-summary">${hasPlan
+            ? `${ctx.ui.escape(planName || '已开通套餐')} · ${expiresAt ? `${ctx.ui.dateTime(expiresAt)} 到期` : '到期时间未知'}`
+            : '还没有开通套餐'} · ${deviceText} · 余额 <b class="p-balance-value">${ctx.ui.money(user.balanceCents || 0)}</b></p>
+          <div class="p-dash-note">
+            <span>${user.email ? ctx.ui.escape(user.email) : '未绑定邮箱'}</span>
+            ${user.lastLoginAt ? `<span>上次登录 ${ctx.ui.dateTime(user.lastLoginAt)}</span>` : ''}
+            <span>账号状态 ${accountBadge}</span>
+          </div>
         </div>
-        <p class="p-hero-note">${user.email ? ctx.ui.escape(user.email) : '未绑定邮箱'}${user.lastLoginAt ? ` · 上次登录 ${ctx.ui.dateTime(user.lastLoginAt)}` : ''} · 账号状态 ${accountBadge}</p>
-        <div class="hero-actions">
+        <div class="hero-actions p-dash-actions">
           <button class="btn btn-primary" type="button" data-action="go-plans">购买套餐</button>
           <button class="btn btn-secondary" type="button" data-action="go-recharge">充值</button>
         </div>
       </header>`;
 
-    const guideHtml = `
-      <section class="section p-guide">
-        <div class="empty">
-          <div class="empty-title">还没有开通套餐</div>
-          <p>选择一个套餐即可开始使用，支付成功后订阅链接会自动生成。</p>
-          <div class="empty-actions">
-            <button class="btn btn-secondary" type="button" data-action="go-recharge">先充值余额</button>
-          </div>
+    const planCardHtml = `
+      <section class="card p-plan-card">
+        <div class="card-head">
+          <h2 class="card-title">套餐状态</h2>
+          ${planBadge}
         </div>
+        <div class="card-body">
+          ${hasPlan
+            ? `<div class="p-plan-name">${ctx.ui.escape(planName || '未命名套餐')}</div>
+              <dl class="kv p-plan-kv">
+                <dt>到期时间</dt>
+                <dd>${expiresAt ? `${ctx.ui.dateTime(expiresAt)} · ${ctx.ui.relative(expiresAt)}` : '—'}</dd>
+                <dt>设备数</dt>
+                <dd>${deviceText}</dd>
+                <dt>账户余额</dt>
+                <dd class="p-balance-text">${ctx.ui.money(user.balanceCents || 0)}</dd>
+              </dl>`
+            : `<div class="empty p-empty-sm">
+                <div class="empty-title">还没有开通套餐</div>
+                <p>选择一个套餐即可开始使用，支付成功后订阅链接会自动生成。</p>
+                <div class="empty-actions">
+                  <button class="btn btn-primary btn-sm" type="button" data-action="go-plans">去购买套餐</button>
+                  <button class="btn btn-secondary btn-sm" type="button" data-action="go-recharge">先充值余额</button>
+                </div>
+              </div>`}
+        </div>
+        ${hasPlan
+          ? `<div class="card-foot p-plan-card-foot">
+              <span class="text-sm text-muted">套餐到期前续费会自动延长有效期。</span>
+              <button class="btn btn-primary btn-sm" type="button" data-action="go-plans">续费套餐</button>
+            </div>`
+          : ''}
       </section>`;
 
-    const trafficHtml2 = `
-      <section class="section">
-        <div class="section-head">
-          <h2 class="section-title">流量使用</h2>
-          <span class="text-sm text-muted">${liveAvailable ? '实时数据' : '缓存数据'}</span>
+    const trafficCardHtml = `
+      <section class="card p-traffic-card">
+        <div class="card-head">
+          <h2 class="card-title">流量使用</h2>
+          <span class="badge ${liveAvailable ? 'badge-success' : 'badge-muted'}">${liveAvailable ? '实时数据' : '缓存数据'}</span>
         </div>
-        ${trafficHtml}
+        <div class="card-body">${trafficHtml}</div>
       </section>`;
 
-    const subscriptionHtml = `
-      <section class="section">
-        <div class="section-head">
-          <h2 class="section-title">订阅</h2>
+    const subscriptionCardHtml = `
+      <section class="card p-sub-card">
+        <div class="card-head">
+          <h2 class="card-title">订阅</h2>
           ${subscriptionUrl ? '<span class="badge badge-success">链接可用</span>' : '<span class="badge badge-muted">未生成</span>'}
         </div>
-        <div class="p-sub-body">
+        <div class="card-body p-sub-body">
           ${subscriptionUrl
             ? `<div class="p-sub-url">
                 <input class="input mono" readonly value="${ctx.ui.escape(subscriptionUrl)}" aria-label="订阅链接" />
@@ -246,22 +275,25 @@ export async function render(root, ctx) {
         actionHtml: '<a class="btn btn-secondary" href="#/plans">去购买套餐</a>',
       });
 
-    const ordersHtml = `
-      <section class="section">
-        <div class="section-head">
-          <h2 class="section-title">最近订单</h2>
+    const ordersCardHtml = `
+      <section class="card p-orders-card">
+        <div class="card-head">
+          <h2 class="card-title">最近订单</h2>
           <a class="link-btn p-tap" href="#/orders">查看全部订单</a>
         </div>
-        ${recentOrdersHtml}
+        <div class="card-body p-orders-body">${recentOrdersHtml}</div>
       </section>`;
 
     root.innerHTML = `
       <div class="p-dashboard">
-        ${heroHtml}
+        ${headHtml}
         ${warningHtml}
-        ${hasPlan ? trafficHtml2 : guideHtml}
-        ${hasPlan ? subscriptionHtml : ''}
-        ${ordersHtml}
+        <div class="card-grid cols-2 p-dash-grid">
+          ${planCardHtml}
+          ${trafficCardHtml}
+        </div>
+        ${hasPlan ? subscriptionCardHtml : ''}
+        ${ordersCardHtml}
       </div>`;
   }
 
@@ -288,11 +320,15 @@ export async function render(root, ctx) {
   function errorHtml(err) {
     const message = (err && err.message) || '加载失败，请稍后重试';
     return `<div class="p-error">
-      <div class="alert alert-danger">${ctx.ui.escape(message)}</div>
-      <div class="row mt-2">
-        <button class="btn btn-primary" type="button" data-action="retry">重试</button>
-        <a class="btn btn-secondary" href="#/login">重新登录</a>
-      </div>
+      <section class="card">
+        <div class="card-body">
+          <div class="alert alert-danger">${ctx.ui.escape(message)}</div>
+          <div class="row mt-2">
+            <button class="btn btn-primary" type="button" data-action="retry">重试</button>
+            <a class="btn btn-secondary" href="#/login">重新登录</a>
+          </div>
+        </div>
+      </section>
     </div>`;
   }
 }

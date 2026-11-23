@@ -1,13 +1,7 @@
-/* 用户侧页面专属样式：统一 p- 前缀，复用 base.css 组件与 CSS 变量。
-   .auth / .auth-inner 等共用布局类由 base.css 提供，这里只写页面私有样式。 */
+/* 用户侧页面专属样式：只写 p- 前缀规则，颜色全部取自 base.css 的 CSS 变量。
+   卡片、价格卡、按钮、表单等结构复用 base.css，这里只做页面级排版微调。 */
 
 /* ============ 共用 ============ */
-.p-login,
-.p-register,
-.p-account {
-  display: block;
-}
-
 .p-tap {
   display: inline-flex;
   align-items: center;
@@ -15,50 +9,43 @@
   min-height: 40px;
 }
 
-.p-narrow {
-  width: 100%;
-  max-width: var(--content-narrow);
-  margin: 0 auto;
+.p-error {
+  padding-top: 8px;
 }
 
-.p-error {
-  padding-top: 12px;
+.p-empty-sm {
+  padding: 32px 8px 20px;
+}
+
+.p-balance-value,
+.p-balance-text {
+  color: var(--ink);
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+.p-section-label {
+  margin-bottom: 12px;
+  font-size: 15px;
+}
+
+.p-choice-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
 /* ============ 登录 / 注册 ============ */
-.p-auth-head {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 30px;
-  text-align: center;
-}
-
 .p-auth-brand {
   justify-content: center;
-}
-
-.p-auth-title {
-  font-size: 30px;
-  font-weight: 600;
-  letter-spacing: -0.03em;
-  line-height: 1.15;
-}
-
-.p-auth-sub {
-  max-width: 34ch;
-  color: var(--muted);
-  font-size: 13.5px;
 }
 
 .p-auth-links {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
   gap: 6px 18px;
-  margin-top: 26px;
 }
 
 .p-auth-links .link-btn {
@@ -75,7 +62,7 @@
   flex-direction: column;
   align-items: center;
   gap: 16px;
-  margin-top: 26px;
+  margin-top: 22px;
 }
 
 .p-auth-actions .link-btn {
@@ -88,32 +75,73 @@
 
 /* ============ 仪表盘 ============ */
 .p-dashboard {
-  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.p-dash-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px 28px;
+  margin-bottom: 0;
+}
+
+.p-dash-head-main {
+  min-width: 0;
+  max-width: 64ch;
 }
 
 .p-dash-title {
-  margin-top: 12px;
+  margin-top: 10px;
   overflow-wrap: anywhere;
 }
 
-.p-balance {
-  color: var(--muted);
+.p-dash-summary {
+  margin-top: 10px;
 }
 
-.p-balance-value {
-  color: var(--ink);
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-}
-
-.p-hero-note {
-  margin-top: 14px;
+.p-dash-note {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 16px;
+  margin-top: 10px;
   color: var(--muted);
   font-size: 12.5px;
 }
 
-.p-dash-notice {
-  margin-top: 34px;
+.p-dash-actions {
+  flex: none;
+}
+
+.p-notice-body {
+  padding-top: 20px;
+}
+
+.p-plan-name {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  overflow-wrap: anywhere;
+}
+
+.p-plan-kv {
+  margin-top: 16px;
+}
+
+.p-plan-card-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.p-plan-card-foot .text-muted {
+  flex: 1 1 200px;
 }
 
 .p-traffic-hint {
@@ -121,19 +149,11 @@
 }
 
 .p-track {
-  margin-top: 26px;
+  margin-top: 24px;
 }
 
 .p-track-foot {
   margin-top: 10px;
-}
-
-.p-guide .empty {
-  padding-top: 40px;
-}
-
-.p-sub-body {
-  padding-top: 24px;
 }
 
 .p-sub-url {
@@ -148,7 +168,7 @@
 }
 
 .p-client-rows {
-  margin-top: 16px;
+  margin-top: 18px;
 }
 
 .p-client-rows .row-sub {
@@ -156,7 +176,7 @@
 }
 
 .p-links {
-  margin-top: 22px;
+  margin-top: 20px;
 }
 
 .p-links summary {
@@ -180,7 +200,7 @@
 }
 
 .p-sub-fallback {
-  margin-top: 22px;
+  margin-top: 20px;
 }
 
 .p-order-item {
@@ -200,36 +220,57 @@
 
 .p-order-amount {
   font-size: 13.5px;
-  font-weight: 600;
+  font-weight: 650;
   font-variant-numeric: tabular-nums;
 }
 
 /* ============ 购买套餐 ============ */
+.p-price-grid {
+  margin-top: 4px;
+}
+
+.p-price-grid .price-desc {
+  min-height: 44px;
+}
+
+.p-plans-empty {
+  margin-top: 4px;
+}
+
+.p-pay-card {
+  margin-bottom: 26px;
+}
+
 .p-pay-body {
-  padding-top: 22px;
+  padding-top: 20px;
+}
+
+.p-pay-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 16px;
 }
 
 .p-pay-switch {
-  margin-bottom: 18px;
+  margin-bottom: 16px;
 }
 
 .p-pay-hint {
-  margin-top: 16px;
+  margin-top: 14px;
 }
 
 .p-pay-choices {
   margin-top: 4px;
 }
 
-.p-choice-stack {
+.p-plan-name-row {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.p-plans .chip,
-.p-recharge .chip {
-  min-height: 40px;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
 }
 
 .p-plans .chip:disabled,
@@ -244,55 +285,62 @@
   cursor: not-allowed;
 }
 
-.p-plan-row .plan-desc {
-  max-width: 60ch;
+.p-manual-card {
+  margin-bottom: 22px;
 }
 
-.p-manual {
-  margin-bottom: 8px;
+.p-manual-body {
+  padding-top: 20px;
 }
 
 .p-manual-actions {
-  margin-top: 10px;
+  margin-top: 12px;
 }
 
 /* ============ 在线充值 ============ */
-.p-recharge .section {
-  margin-top: 40px;
+.p-recharge-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  width: 100%;
+  max-width: 520px;
+  margin: 0 auto;
 }
 
 .p-amount-wrap .input-prefix {
   font-size: 17px;
 }
 
+.p-amount-wrap .input {
+  padding-left: 38px;
+}
+
 .p-amount-input {
-  height: 56px;
-  padding-left: 36px;
+  height: 58px;
   font-size: 22px;
-  font-weight: 600;
+  font-weight: 650;
   letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;
 }
 
 .p-recharge-chips {
-  margin-top: 16px;
+  margin-top: 14px;
+}
+
+.p-recharge-method {
+  padding-top: 2px;
 }
 
 .p-recharge-total {
-  padding: 18px 0;
-  border-top: 1px solid var(--line);
-  border-bottom: 1px solid var(--line);
+  align-items: baseline;
+  padding: 4px 0 16px;
 }
 
 .p-recharge-total strong {
-  font-size: 28px;
-  font-weight: 600;
+  font-size: 30px;
+  font-weight: 700;
   letter-spacing: -0.03em;
   font-variant-numeric: tabular-nums;
-}
-
-.p-recharge-total + .error-text {
-  margin-top: 12px;
 }
 
 .p-recharge-secure {
@@ -300,34 +348,42 @@
 }
 
 .p-tip-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin: 0;
-  padding: 22px 0 0 18px;
-  color: var(--muted);
-  font-size: 12.5px;
+  margin-top: 2px;
 }
 
 .p-recharge-notice {
-  margin-top: 18px;
+  margin-top: 16px;
+}
+
+.p-recharge-notice:empty {
+  display: none;
 }
 
 .p-recharge-notice .btn {
   align-self: flex-start;
+  margin-top: 4px;
 }
 
 .p-recharge-records {
+  display: inline-flex;
   margin-top: 18px;
 }
 
 /* ============ 我的订单 ============ */
+.p-orders-tabs-card {
+  margin-bottom: 20px;
+}
+
+.p-orders-tabs-body {
+  padding: 6px 24px 14px;
+}
+
 .p-orders-tabs {
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-end;
   justify-content: space-between;
   gap: 16px;
-  flex-wrap: wrap;
 }
 
 .p-orders-tabs .tabs {
@@ -336,31 +392,63 @@
 }
 
 .p-orders-notice {
-  margin-top: 18px;
+  margin-bottom: 16px;
+}
+
+.p-orders-notice:empty {
+  display: none;
 }
 
 .p-orders-notice .link-btn {
-  align-self: flex-start;
+  display: inline-flex;
+  margin-top: 6px;
 }
 
-.p-orders-rows {
-  margin-top: 22px;
+.p-orders-list {
+  margin-bottom: 4px;
 }
 
-.p-order-row {
-  flex-wrap: wrap;
+.p-order-head-main {
+  min-width: 0;
 }
 
-.p-order-row.is-highlight {
-  background: var(--surface-2);
+.p-order-title {
+  overflow: hidden;
+  font-size: 15px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.p-order-no {
+  margin-top: 2px;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.p-order-body {
+  padding-top: 0;
+}
+
+.p-order-foot {
+  padding-top: 14px;
+  padding-bottom: 14px;
 }
 
 .p-order-actions {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: flex-end;
-  flex-wrap: wrap;
   gap: 16px;
+}
+
+.p-order-card.is-highlight {
+  border-color: var(--accent);
+  box-shadow: var(--shadow-card-hover);
 }
 
 .p-order-hint {
@@ -376,55 +464,75 @@
 }
 
 /* ============ 账号设置 ============ */
-.p-account-kv {
-  padding-top: 26px;
+.p-account-grid {
+  align-items: start;
 }
 
-.p-account-form {
-  max-width: 420px;
-  padding-top: 26px;
+.p-account-hint {
+  margin-bottom: 16px;
 }
 
-.p-balance-text {
-  color: var(--ink);
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
+.p-account-form .btn {
+  margin-top: 4px;
+}
+
+.p-account-logout {
+  margin-top: 20px;
+}
+
+.p-logout-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-top: 18px;
+}
+
+.p-logout-main {
+  min-width: 0;
+}
+
+.p-logout-main .row-sub {
+  white-space: normal;
 }
 
 /* ============ 模拟支付 ============ */
-.p-mock .alert {
-  margin-top: 26px;
+.p-mock-inner {
+  width: 100%;
+  max-width: 520px;
+  margin: 0 auto;
 }
 
 .p-mock-head {
-  padding-top: 4px;
-  text-align: center;
+  margin-bottom: 26px;
 }
 
 .p-mock-amount {
-  margin-top: 14px;
   font-variant-numeric: tabular-nums;
 }
 
-.p-mock-order {
-  margin-top: 12px;
-  color: var(--muted);
-  font-size: 12.5px;
+.p-mock-card .alert {
+  margin-bottom: 6px;
 }
 
 .p-mock-rows {
-  margin-top: 30px;
+  margin-top: 10px;
 }
 
 .p-mock-result {
-  margin-top: 20px;
+  margin-top: 16px;
+}
+
+.p-mock-result:empty {
+  display: none;
 }
 
 .p-mock-actions {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  margin-top: 26px;
+  margin-top: 22px;
 }
 
 .p-mock-links {
@@ -435,14 +543,16 @@
 
 /* ============ 404 ============ */
 .p-notfound {
-  max-width: 480px;
+  max-width: 520px;
   margin: 0 auto;
-  padding-top: 40px;
 }
 
-.p-notfound .empty {
-  padding-top: 16px;
-  padding-bottom: 0;
+.p-notfound-empty {
+  padding: 40px 8px 20px;
+}
+
+.p-notfound-code {
+  margin-bottom: 14px;
 }
 
 .p-notfound-actions {
@@ -454,8 +564,24 @@
 
 /* ============ 移动端 ============ */
 @media (max-width: 760px) {
-  .auth {
+  .p-auth {
     min-height: 0;
+  }
+
+  .p-dash-actions {
+    width: 100%;
+  }
+
+  .p-dash-actions .btn {
+    flex: 1 1 auto;
+  }
+
+  .p-plan-card-foot .text-muted {
+    flex-basis: 100%;
+  }
+
+  .p-plan-card-foot .btn {
+    width: 100%;
   }
 
   .p-sub-url {
@@ -473,28 +599,17 @@
     gap: 6px;
   }
 
-  .p-orders-rows {
-    margin-top: 16px;
-  }
-
   .p-order-actions {
     justify-content: flex-start;
     width: 100%;
   }
 
-  .p-mock .alert {
-    margin-top: 20px;
-  }
-
-  .p-mock-rows {
-    margin-top: 22px;
+  .p-orders-tabs-body {
+    padding-left: 18px;
+    padding-right: 18px;
   }
 
   .p-mock-links .btn {
     flex: 1 1 auto;
-  }
-
-  .p-notfound {
-    padding-top: 20px;
   }
 }

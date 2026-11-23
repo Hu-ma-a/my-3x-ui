@@ -15,6 +15,9 @@ function handleAuthError(ctx, err) {
   return false;
 }
 
+const ICON_TAG =
+  '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3.4 13.4a2 2 0 0 1-.6-1.4V4.5A1.5 1.5 0 0 1 4.3 3h7.5a2 2 0 0 1 1.4.6l7.4 7.4a2 2 0 0 1 0 2.8Z"/><circle cx="7.6" cy="7.6" r="1.3"/></svg>';
+
 const ERROR_INPUT = {
   name: 'name',
   price: 'priceCents',
@@ -42,19 +45,28 @@ export async function render(root, ctx) {
       </div>
       <button type="button" class="btn btn-primary" data-act="new-plan">新建套餐</button>
     </header>
-    <form class="a-toolbar" data-role="filter" novalidate>
-      <input class="input" type="search" name="q" placeholder="搜索套餐名称或描述" aria-label="搜索套餐名称或描述" autocomplete="off">
-      <select class="select" name="filter" aria-label="按状态筛选">
-        <option value="">全部状态</option>
-        <option value="enabled">已启用</option>
-        <option value="disabled">已停用</option>
-      </select>
-      <button class="btn btn-secondary" type="submit">搜索</button>
-      <button class="btn btn-ghost" type="button" data-act="reset-filter">重置</button>
-    </form>
-    <div id="a-plan-meta" class="a-list-meta"></div>
-    <div id="a-plan-table"><div class="loading-block">${ui.spinner()}<span>正在加载套餐…</span></div></div>
-    <div id="a-plan-pager"></div>`;
+    <section class="card">
+      <div class="card-head">
+        <div>
+          <h2 class="card-title"><span class="a-title-icon">${ICON_TAG}</span>套餐列表</h2>
+          <p class="card-desc" id="a-plan-meta"></p>
+        </div>
+      </div>
+      <div class="card-body">
+        <form class="a-toolbar" data-role="filter" novalidate>
+          <input class="input" type="search" name="q" placeholder="搜索套餐名称或描述" aria-label="搜索套餐名称或描述" autocomplete="off">
+          <select class="select" name="filter" aria-label="按状态筛选">
+            <option value="">全部状态</option>
+            <option value="enabled">已启用</option>
+            <option value="disabled">已停用</option>
+          </select>
+          <button class="btn btn-secondary" type="submit">搜索</button>
+          <button class="btn btn-ghost" type="button" data-act="reset-filter">重置</button>
+        </form>
+        <div id="a-plan-table"><div class="loading-block">${ui.spinner()}<span>正在加载套餐…</span></div></div>
+        <div id="a-plan-pager"></div>
+      </div>
+    </section>`;
   root.replaceChildren(wrap);
 
   const tableBox = wrap.querySelector('#a-plan-table');

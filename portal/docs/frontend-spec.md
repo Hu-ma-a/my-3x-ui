@@ -1,6 +1,6 @@
 # 门户前端规范（v1）
 
-> 视觉方向以 `docs/design-system.md`（v2：极简、现代、居中、无卡片堆叠）为准；本文件保留功能与模块契约。
+> 视觉方向以 `docs/design-system.md`（v3：卡片定价页风格——居中标题、三列价格卡、推荐卡高亮、全站卡片堆叠）为准；本文件保留功能与模块契约。
 
 前端是**零依赖、零构建**的静态 SPA：纯 ES Module + 原生 DOM + 手写 CSS，由 Node 后端直接托管 `portal/public/`。
 不要引入任何 npm 包、不要用 JSX/TS、不要用 Tailwind。目标浏览器：近两年 Chrome/Edge/Safari/Firefox。

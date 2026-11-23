@@ -11,36 +11,38 @@ export async function render(root, ctx) {
   const next = safeNext(ctx.query && ctx.query.next);
 
   root.innerHTML = `
-    <div class="auth p-login">
+    <div class="auth p-login p-auth">
       <div class="auth-inner">
-        <div class="p-auth-head">
-          <span class="brand p-auth-brand">
-            <span class="brand-dot" aria-hidden="true"></span>
-            <span>${ctx.ui.escape(portalName)}</span>
-          </span>
-          <h1 class="p-auth-title">登录</h1>
-          <p class="p-auth-sub">登录后管理套餐、查看流量与订单。</p>
-        </div>
-        <form id="p-login-form" novalidate>
-          <div class="field">
-            <label class="field-label" for="p-login-username">用户名</label>
-            <input class="input" id="p-login-username" name="username" autocomplete="username"
-              placeholder="请输入用户名" maxlength="32" />
-            <div class="error-text" data-error="username"></div>
+        <section class="card auth-card">
+          <div class="auth-head">
+            <span class="brand p-auth-brand">
+              <span class="brand-dot" aria-hidden="true"></span>
+              <span>${ctx.ui.escape(portalName)}</span>
+            </span>
+            <h1 class="auth-title">登录</h1>
+            <p class="auth-sub">登录后管理套餐、查看流量与订单。</p>
           </div>
-          <div class="field">
-            <label class="field-label" for="p-login-password">密码</label>
-            <input class="input" id="p-login-password" name="password" type="password"
-              autocomplete="current-password" placeholder="请输入密码" maxlength="72" />
-            <div class="error-text" data-error="password"></div>
+          <form id="p-login-form" novalidate>
+            <div class="field">
+              <label class="field-label" for="p-login-username">用户名</label>
+              <input class="input" id="p-login-username" name="username" autocomplete="username"
+                placeholder="请输入用户名" maxlength="32" />
+              <div class="error-text" data-error="username"></div>
+            </div>
+            <div class="field">
+              <label class="field-label" for="p-login-password">密码</label>
+              <input class="input" id="p-login-password" name="password" type="password"
+                autocomplete="current-password" placeholder="请输入密码" maxlength="72" />
+              <div class="error-text" data-error="password"></div>
+            </div>
+            <div class="error-text" id="p-login-error" role="alert"></div>
+            <button class="btn btn-primary btn-lg btn-block" id="p-login-submit" type="submit">登录</button>
+          </form>
+          <div class="auth-foot p-auth-links">
+            <a class="link-btn p-tap" href="#/register">还没有账号？立即注册</a>
+            <a class="link-btn p-tap" href="#/">返回首页</a>
           </div>
-          <div class="error-text" id="p-login-error" role="alert"></div>
-          <button class="btn btn-primary btn-lg btn-block" id="p-login-submit" type="submit">登录</button>
-        </form>
-        <div class="p-auth-links">
-          <a class="link-btn p-tap" href="#/register">还没有账号？立即注册</a>
-          <a class="link-btn p-tap" href="#/">返回首页</a>
-        </div>
+        </section>
       </div>
     </div>`;
 

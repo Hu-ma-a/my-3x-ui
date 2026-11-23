@@ -9,6 +9,9 @@ const PROVIDER_LABELS = {
   epay: '易支付',
 };
 
+const ICON_RECEIPT =
+  '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2V3Z"/><path d="M9 8h6M9 12h6"/></svg>';
+
 const CLOSE_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>';
 
 /** 处理 401/403：跳登录或提示无权限。 */
@@ -47,26 +50,38 @@ export async function render(root, ctx) {
   let items = [];
 
   const wrap = document.createElement('div');
-  wrap.innerHTML = `<header class="page-head">
-      <h1 class="page-title">订单管理</h1>
-      <p class="page-desc">查看全部订单，处理待支付、标记收款与重试 3x-ui 开通</p>
+  wrap.innerHTML = `<header class="page-head row-between">
+      <div>
+        <h1 class="page-title">订单管理</h1>
+        <p class="page-desc">查看全部订单，处理待支付、标记收款与重试 3x-ui 开通</p>
+      </div>
+      <button type="button" class="btn btn-secondary" data-act="refresh">刷新列表</button>
     </header>
-    <form class="a-toolbar" data-role="filter" novalidate>
-      <select class="select" name="kind" aria-label="按订单类型筛选">
-        <option value="">全部类型</option>
-        ${options(['plan', 'recharge'], state.kind, kindText)}
-      </select>
-      <select class="select" name="status" aria-label="按订单状态筛选">
-        <option value="">全部状态</option>
-        ${options(STATUSES, state.status, statusText)}
-      </select>
-      <input class="input" type="search" name="query" placeholder="搜索订单号或用户名" aria-label="搜索订单号或用户名" value="${esc(state.query)}" autocomplete="off">
-      <button class="btn btn-secondary" type="submit">搜索</button>
-      <button class="btn btn-ghost" type="button" data-act="reset-filter">重置</button>
-    </form>
-    <div id="a-orders-meta" class="a-list-meta"></div>
-    <div id="a-orders-table"><div class="loading-block">${ui.spinner()}<span>正在加载订单…</span></div></div>
-    <div id="a-orders-pager"></div>`;
+    <section class="card">
+      <div class="card-head">
+        <div>
+          <h2 class="card-title"><span class="a-title-icon">${ICON_RECEIPT}</span>订单列表</h2>
+          <p class="card-desc" id="a-orders-meta"></p>
+        </div>
+      </div>
+      <div class="card-body">
+        <form class="a-toolbar" data-role="filter" novalidate>
+          <select class="select" name="kind" aria-label="按订单类型筛选">
+            <option value="">全部类型</option>
+            ${options(['plan', 'recharge'], state.kind, kindText)}
+          </select>
+          <select class="select" name="status" aria-label="按订单状态筛选">
+            <option value="">全部状态</option>
+            ${options(STATUSES, state.status, statusText)}
+          </select>
+          <input class="input" type="search" name="query" placeholder="搜索订单号或用户名" aria-label="搜索订单号或用户名" value="${esc(state.query)}" autocomplete="off">
+          <button class="btn btn-secondary" type="submit">搜索</button>
+          <button class="btn btn-ghost" type="button" data-act="reset-filter">重置</button>
+        </form>
+        <div id="a-orders-table"><div class="loading-block">${ui.spinner()}<span>正在加载订单…</span></div></div>
+        <div id="a-orders-pager"></div>
+      </div>
+    </section>`;
   root.replaceChildren(wrap);
 
   const tableBox = wrap.querySelector('#a-orders-table');
@@ -325,7 +340,8 @@ export async function render(root, ctx) {
     const btn = e.target.closest('[data-act]');
     if (!btn) return;
     const act = btn.getAttribute('data-act');
-    if (act === 'reset-filter') resetFilter();
+    if (act === 'refresh') load();
+    else if (act === 'reset-filter') resetFilter();
     else if (act === 'reload') load();
     else if (act === 'detail') {
       const order = findOrder(btn.getAttribute('data-id'));

@@ -31,68 +31,69 @@ export async function render(root, ctx) {
     return `
       <div class="p-account">
         <div class="page-head">
+          <span class="pill-label">账号</span>
           <h1 class="page-title">账号设置</h1>
           <p class="page-desc">查看账号信息、修改密码或退出登录。</p>
         </div>
-        <section class="section">
-          <div class="section-head">
-            <h2 class="section-title">账号信息</h2>
-          </div>
-          <dl class="kv p-account-kv">
-            <dt>用户名</dt>
-            <dd>${ctx.ui.escape(user.username || '—')}</dd>
-            <dt>邮箱</dt>
-            <dd>${user.email ? ctx.ui.escape(user.email) : '未设置'}</dd>
-            <dt>账号状态</dt>
-            <dd>${statusBadge}</dd>
-            <dt>注册时间</dt>
-            <dd>${user.createdAt ? ctx.ui.dateTime(user.createdAt) : '—'}</dd>
-            <dt>上次登录</dt>
-            <dd>${user.lastLoginAt ? ctx.ui.dateTime(user.lastLoginAt) : '—'}</dd>
-            <dt>账户余额</dt>
-            <dd class="p-balance-text">${ctx.ui.money(user.balanceCents || 0)}</dd>
-          </dl>
-        </section>
-        <section class="section">
-          <div class="section-head">
-            <h2 class="section-title">修改密码</h2>
-            <span class="text-sm text-muted">修改成功后其他设备会退出登录</span>
-          </div>
-          <form id="p-account-password-form" class="p-account-form" novalidate>
-            <div class="field">
-              <label class="field-label" for="p-account-current">当前密码</label>
-              <input class="input" id="p-account-current" type="password" autocomplete="current-password"
-                placeholder="请输入当前密码" maxlength="72" />
-              <div class="error-text" data-error="currentPassword"></div>
+        <div class="card-grid cols-2 p-account-grid">
+          <section class="card p-account-info">
+            <div class="card-head">
+              <h2 class="card-title">账号信息</h2>
+              ${statusBadge}
             </div>
-            <div class="field">
-              <label class="field-label" for="p-account-new">新密码</label>
-              <input class="input" id="p-account-new" type="password" autocomplete="new-password"
-                placeholder="8–72 位字符" maxlength="72" />
-              <div class="error-text" data-error="newPassword"></div>
+            <div class="card-body">
+              <dl class="kv p-account-kv">
+                <dt>用户名</dt>
+                <dd>${ctx.ui.escape(user.username || '—')}</dd>
+                <dt>邮箱</dt>
+                <dd>${user.email ? ctx.ui.escape(user.email) : '未设置'}</dd>
+                <dt>注册时间</dt>
+                <dd>${user.createdAt ? ctx.ui.dateTime(user.createdAt) : '—'}</dd>
+                <dt>上次登录</dt>
+                <dd>${user.lastLoginAt ? ctx.ui.dateTime(user.lastLoginAt) : '—'}</dd>
+                <dt>账户余额</dt>
+                <dd class="p-balance-text">${ctx.ui.money(user.balanceCents || 0)}</dd>
+              </dl>
             </div>
-            <div class="field">
-              <label class="field-label" for="p-account-confirm">确认新密码</label>
-              <input class="input" id="p-account-confirm" type="password" autocomplete="new-password"
-                placeholder="请再次输入新密码" maxlength="72" />
-              <div class="error-text" data-error="confirmPassword"></div>
+          </section>
+          <section class="card p-account-password">
+            <div class="card-head">
+              <h2 class="card-title">修改密码</h2>
             </div>
-            <div class="error-text" id="p-account-error" role="alert"></div>
-            <button class="btn btn-primary" id="p-account-submit" type="submit">保存新密码</button>
-          </form>
-        </section>
-        <section class="section">
-          <div class="section-head">
-            <h2 class="section-title">会话</h2>
-          </div>
-          <div class="rows">
-            <div class="row-item">
-              <div class="row-main">
-                <div class="row-title">退出登录</div>
-                <div class="row-sub">退出后需要重新输入用户名和密码才能访问门户。</div>
-              </div>
-              <button class="btn btn-ghost p-tap" type="button" data-action="logout" id="p-logout-btn">退出登录</button>
+            <div class="card-body">
+              <p class="card-desc p-account-hint">修改成功后其他设备会退出登录。</p>
+              <form id="p-account-password-form" class="p-account-form" novalidate>
+                <div class="field">
+                  <label class="field-label" for="p-account-current">当前密码</label>
+                  <input class="input" id="p-account-current" type="password" autocomplete="current-password"
+                    placeholder="请输入当前密码" maxlength="72" />
+                  <div class="error-text" data-error="currentPassword"></div>
+                </div>
+                <div class="field">
+                  <label class="field-label" for="p-account-new">新密码</label>
+                  <input class="input" id="p-account-new" type="password" autocomplete="new-password"
+                    placeholder="8–72 位字符" maxlength="72" />
+                  <div class="error-text" data-error="newPassword"></div>
+                </div>
+                <div class="field">
+                  <label class="field-label" for="p-account-confirm">确认新密码</label>
+                  <input class="input" id="p-account-confirm" type="password" autocomplete="new-password"
+                    placeholder="请再次输入新密码" maxlength="72" />
+                  <div class="error-text" data-error="confirmPassword"></div>
+                </div>
+                <div class="error-text" id="p-account-error" role="alert"></div>
+                <button class="btn btn-primary btn-block" id="p-account-submit" type="submit">保存新密码</button>
+              </form>
             </div>
+          </section>
+        </div>
+        <section class="card p-account-logout">
+          <div class="card-body p-logout-row">
+            <div class="p-logout-main">
+              <div class="row-title">退出登录</div>
+              <div class="row-sub">退出后需要重新输入用户名和密码才能访问门户。</div>
+            </div>
+            <button class="btn btn-danger-ghost p-tap" type="button" data-action="logout" id="p-logout-btn">退出登录</button>
           </div>
         </section>
       </div>`;
@@ -201,11 +202,15 @@ export async function render(root, ctx) {
   function errorHtml(err) {
     const message = (err && err.message) || '加载失败，请稍后重试';
     return `<div class="p-error">
-      <div class="alert alert-danger">${ctx.ui.escape(message)}</div>
-      <div class="row mt-2">
-        <a class="btn btn-primary" href="#/login">重新登录</a>
-        <a class="btn btn-secondary" href="#/dashboard">返回我的账号</a>
-      </div>
+      <section class="card">
+        <div class="card-body">
+          <div class="alert alert-danger">${ctx.ui.escape(message)}</div>
+          <div class="row mt-2">
+            <a class="btn btn-primary" href="#/login">重新登录</a>
+            <a class="btn btn-secondary" href="#/dashboard">返回我的账号</a>
+          </div>
+        </div>
+      </section>
     </div>`;
   }
 }

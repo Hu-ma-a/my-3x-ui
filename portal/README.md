@@ -495,4 +495,4 @@ API Token 是较新 3x-ui 才有的功能，入口在「设置 → 安全设定 
 - [docs/DEPLOY.md](docs/DEPLOY.md) —— 部署与运维手册（Docker / systemd / nginx / 备份恢复 / 排障）
 - [docs/api-contract.md](docs/api-contract.md) —— 前后端 API 契约（接口、订单状态、开通规则、设置键）
 - [docs/frontend-spec.md](docs/frontend-spec.md) —— 前端页面规范
-- [docs/design-system.md](docs/design-system.md) —— 视觉设计规范 v2（极简、现代、居中布局；无卡片堆叠）
+- [docs/design-system.md](docs/design-system.md) —— 视觉设计规范 v3（卡片定价页风格：居中标题、三列价格卡、推荐卡高亮、全站卡片堆叠）

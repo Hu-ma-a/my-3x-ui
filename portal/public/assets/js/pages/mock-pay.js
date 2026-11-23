@@ -36,36 +36,40 @@ export async function render(root, ctx) {
     const kindLabel = ctx.ui.escape(ctx.ui.kindText(item.kind));
     return `
       <div class="p-mock">
-        <div class="p-narrow">
-          <div class="p-mock-head">
-            <p class="eyebrow">模拟支付 · 仅测试环境</p>
+        <div class="p-mock-inner">
+          <div class="page-head center p-mock-head">
+            <span class="pill-label">模拟支付</span>
             <h1 class="display p-mock-amount">${ctx.ui.money(item.amountCents || 0)}</h1>
-            <p class="p-mock-order mono">订单号 ${ctx.ui.escape(item.orderNo)}</p>
+            <p class="page-desc mono">订单号 ${ctx.ui.escape(item.orderNo)}</p>
           </div>
-          <div class="alert alert-info">该页面仅用于本地或测试环境验证支付流程，不会产生真实扣款。</div>
-          <div class="rows p-mock-rows">
-            <div class="row-item">
-              <div class="row-main"><div class="row-title">订单类型</div></div>
-              <div class="row-side">${kindLabel}${item.planName ? ` · ${ctx.ui.escape(item.planName)}` : ''}</div>
+          <section class="card p-mock-card">
+            <div class="card-body">
+              <div class="alert alert-info">该页面仅用于本地或测试环境验证支付流程，不会产生真实扣款。</div>
+              <div class="rows p-mock-rows">
+                <div class="row-item">
+                  <div class="row-main"><div class="row-title">订单类型</div></div>
+                  <div class="row-side">${kindLabel}${item.planName ? ` · ${ctx.ui.escape(item.planName)}` : ''}</div>
+                </div>
+                <div class="row-item">
+                  <div class="row-main"><div class="row-title">当前状态</div></div>
+                  <div class="row-side">${ctx.ui.badge(item.status)}</div>
+                </div>
+                <div class="row-item">
+                  <div class="row-main"><div class="row-title">创建时间</div></div>
+                  <div class="row-side">${ctx.ui.dateTime(item.createdAt)}</div>
+                </div>
+              </div>
+              <div id="p-mock-result" class="p-mock-result">${pending ? '' : resultNoticeHtml(item.status)}</div>
+              <div class="error-text" id="p-mock-error" role="alert"></div>
+              <div class="p-mock-actions">
+                ${pending ? '<button class="btn btn-accent btn-lg btn-block" type="button" id="p-mock-submit">模拟支付成功</button>' : ''}
+                <div class="p-mock-links">
+                  <a class="btn btn-secondary" href="#/orders?orderNo=${encodeURIComponent(item.orderNo)}">查看订单</a>
+                  <a class="btn btn-ghost" href="#/orders">返回订单列表</a>
+                </div>
+              </div>
             </div>
-            <div class="row-item">
-              <div class="row-main"><div class="row-title">当前状态</div></div>
-              <div class="row-side">${ctx.ui.badge(item.status)}</div>
-            </div>
-            <div class="row-item">
-              <div class="row-main"><div class="row-title">创建时间</div></div>
-              <div class="row-side">${ctx.ui.dateTime(item.createdAt)}</div>
-            </div>
-          </div>
-          <div id="p-mock-result" class="p-mock-result">${pending ? '' : resultNoticeHtml(item.status)}</div>
-          <div class="error-text" id="p-mock-error" role="alert"></div>
-          <div class="p-mock-actions">
-            ${pending ? '<button class="btn btn-primary btn-lg btn-block" type="button" id="p-mock-submit">模拟支付成功</button>' : ''}
-            <div class="p-mock-links">
-              <a class="btn btn-secondary" href="#/orders?orderNo=${encodeURIComponent(item.orderNo)}">查看订单</a>
-              <a class="btn btn-ghost" href="#/orders">返回订单列表</a>
-            </div>
-          </div>
+          </section>
         </div>
       </div>`;
   }
@@ -135,16 +139,20 @@ export async function render(root, ctx) {
 
   function messageHtml(title, message) {
     return `<div class="p-mock">
-      <div class="p-narrow">
-        <div class="p-mock-head">
-          <p class="eyebrow">模拟支付</p>
+      <div class="p-mock-inner">
+        <div class="page-head center p-mock-head">
+          <span class="pill-label">模拟支付</span>
           <h1 class="page-title">${ctx.ui.escape(title)}</h1>
         </div>
-        <div class="alert alert-danger">${ctx.ui.escape(message)}</div>
-        <div class="row mt-2">
-          <a class="btn btn-primary" href="#/orders">查看订单列表</a>
-          <a class="btn btn-secondary" href="#/dashboard">返回我的账号</a>
-        </div>
+        <section class="card p-mock-card">
+          <div class="card-body">
+            <div class="alert alert-danger">${ctx.ui.escape(message)}</div>
+            <div class="row mt-2">
+              <a class="btn btn-primary" href="#/orders">查看订单列表</a>
+              <a class="btn btn-secondary" href="#/dashboard">返回我的账号</a>
+            </div>
+          </div>
+        </section>
       </div>
     </div>`;
   }

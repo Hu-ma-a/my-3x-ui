@@ -34,19 +34,24 @@ export async function render(root, ctx) {
     return `
       <div class="p-orders">
         <div class="page-head">
+          <span class="pill-label">订单</span>
           <h1 class="page-title">我的订单</h1>
           <p class="page-desc">查看套餐订单与充值记录。</p>
         </div>
-        <div class="p-orders-tabs">
-          <div class="tabs" role="tablist">
-            <button type="button" class="tab ${state.kind === 'plan' ? 'active' : ''}" data-action="tab" data-kind="plan" role="tab">套餐订单</button>
-            <button type="button" class="tab ${state.kind === 'recharge' ? 'active' : ''}" data-action="tab" data-kind="recharge" role="tab">充值记录</button>
+        <section class="card p-orders-tabs-card">
+          <div class="card-body p-orders-tabs-body">
+            <div class="p-orders-tabs">
+              <div class="tabs" role="tablist">
+                <button type="button" class="tab ${state.kind === 'plan' ? 'active' : ''}" data-action="tab" data-kind="plan" role="tab">套餐订单</button>
+                <button type="button" class="tab ${state.kind === 'recharge' ? 'active' : ''}" data-action="tab" data-kind="recharge" role="tab">充值记录</button>
+              </div>
+              <span class="text-sm text-muted" id="p-orders-total"></span>
+            </div>
           </div>
-          <span class="text-sm text-muted" id="p-orders-total"></span>
-        </div>
+        </section>
         <div id="p-orders-notice" class="p-orders-notice"></div>
-        <div id="p-orders-content"></div>
-        <div id="p-orders-pagination"></div>
+        <div id="p-orders-content" class="p-orders-content"></div>
+        <div id="p-orders-pagination" class="p-orders-pagination"></div>
       </div>`;
   }
 
@@ -130,43 +135,73 @@ export async function render(root, ctx) {
     }
     if (state.error) {
       content.innerHTML = `
-        <div class="alert alert-danger">${ctx.ui.escape(state.error)}</div>
-        <div class="row mt-2">
-          <button class="btn btn-primary" type="button" data-action="retry">重试</button>
-          <a class="btn btn-secondary" href="#/dashboard">返回我的账号</a>
-        </div>`;
+        <section class="card">
+          <div class="card-body">
+            <div class="alert alert-danger">${ctx.ui.escape(state.error)}</div>
+            <div class="row mt-2">
+              <button class="btn btn-primary" type="button" data-action="retry">重试</button>
+              <a class="btn btn-secondary" href="#/dashboard">返回我的账号</a>
+            </div>
+          </div>
+        </section>`;
       return;
     }
     if (!state.items.length) {
-      content.innerHTML = ctx.ui.empty({
-        title: state.kind === 'plan' ? '暂无套餐订单' : '暂无充值记录',
-        desc: state.kind === 'plan' ? '购买套餐后可在这里查看订单状态。' : '充值后可在这里查看记录。',
-        actionHtml: state.kind === 'plan'
-          ? '<a class="btn btn-primary" href="#/plans">去购买套餐</a>'
-          : '<a class="btn btn-primary" href="#/recharge">去充值</a>',
-      });
+      content.innerHTML = `
+        <section class="card">
+          <div class="card-body">
+            ${ctx.ui.empty({
+              title: state.kind === 'plan' ? '暂无套餐订单' : '暂无充值记录',
+              desc: state.kind === 'plan' ? '购买套餐后可在这里查看订单状态。' : '充值后可在这里查看记录。',
+              actionHtml: state.kind === 'plan'
+                ? '<a class="btn btn-primary" href="#/plans">去购买套餐</a>'
+                : '<a class="btn btn-primary" href="#/recharge">去充值</a>',
+            })}
+          </div>
+        </section>`;
       return;
     }
 
-    content.innerHTML = `<div class="rows p-orders-rows">${state.items.map(orderRowHtml).join('')}</div>`;
+    content.innerHTML = `<div class="stack-gap p-orders-list">${state.items.map(orderCardHtml).join('')}</div>`;
     applyHighlight(content);
   }
 
-  function orderRowHtml(order) {
+  function orderCardHtml(order) {
     const orderNo = order.orderNo ? String(order.orderNo) : '';
     const kindLabel = ctx.ui.escape(ctx.ui.kindText(order.kind));
-    const title = order.planName ? `${kindLabel} · ${ctx.ui.escape(order.planName)}` : kindLabel;
-    return `<div class="row-item p-order-row" data-order-no="${ctx.ui.escape(orderNo)}">
-      <div class="row-main">
-        <div class="row-title">${title}</div>
-        <div class="row-sub"><span class="mono">${ctx.ui.escape(orderNo)}</span> · ${ctx.ui.escape(providerText(order.provider))} · ${ctx.ui.dateTime(order.createdAt)}</div>
-      </div>
-      <div class="row-side p-order-side">
-        <span class="p-order-amount">${ctx.ui.money(order.amountCents || 0)}</span>
+    const planLabel = order.planName ? ctx.ui.escape(order.planName) : '—';
+    return `<article class="card p-order-card" data-order-no="${ctx.ui.escape(orderNo)}">
+      <div class="card-head p-order-head">
+        <div class="p-order-head-main">
+          <div class="p-order-title">${kindLabel}${order.planName ? ` · ${ctx.ui.escape(order.planName)}` : ''}</div>
+          <div class="p-order-no mono">${ctx.ui.escape(orderNo)}</div>
+        </div>
         ${ctx.ui.badge(order.status)}
       </div>
-      <div class="p-order-actions">${actionsHtml(order)}</div>
-    </div>`;
+      <div class="card-body p-order-body">
+        <div class="rows">
+          <div class="row-item">
+            <div class="row-main"><div class="row-title">套餐</div></div>
+            <div class="row-side">${planLabel}</div>
+          </div>
+          <div class="row-item">
+            <div class="row-main"><div class="row-title">金额</div></div>
+            <div class="row-side p-order-amount">${ctx.ui.money(order.amountCents || 0)}</div>
+          </div>
+          <div class="row-item">
+            <div class="row-main"><div class="row-title">支付方式</div></div>
+            <div class="row-side">${ctx.ui.escape(providerText(order.provider))}</div>
+          </div>
+          <div class="row-item">
+            <div class="row-main"><div class="row-title">创建时间</div></div>
+            <div class="row-side">${ctx.ui.dateTime(order.createdAt)}</div>
+          </div>
+        </div>
+      </div>
+      <div class="card-foot p-order-foot">
+        <div class="p-order-actions">${actionsHtml(order)}</div>
+      </div>
+    </article>`;
   }
 
   function actionsHtml(order) {

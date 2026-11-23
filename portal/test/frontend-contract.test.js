@@ -129,40 +129,79 @@ describe('前端模块与核心 API 契约一致', () => {
   });
 });
 
-describe('视觉规范 v2（极简现代居中）', () => {
-  it('base.css 提供新设计系统令牌与组件', () => {
+describe('视觉规范 v3（卡片定价页风格）', () => {
+  it('base.css 提供卡片与定价卡片设计系统', () => {
     const base = read('assets/css/base.css');
-    for (const token of ['--ink:', '--line:', '--accent:', '--content:', '--content-wide:', '--topbar-h:']) {
+    for (const token of ['--ink:', '--line:', '--accent:', '--surface:', '--radius-card:', '--shadow-card:', '--content:', '--content-wide:', '--topbar-h:']) {
       assert.ok(base.includes(token), `base.css 缺少设计令牌 ${token}`);
     }
-    for (const component of ['.page', '.section', '.section-head', '.rows', '.row-item', '.metrics', '.metric', '.plan-list', '.table', '.btn', '.input', '.modal', '.toast', '.track', '.badge']) {
+    for (const component of [
+      '.card',
+      '.card-grid',
+      '.card-head',
+      '.card-body',
+      '.price-grid',
+      '.price-card',
+      '.price-topbar',
+      '.price-icon',
+      '.price-amount',
+      '.price-divider',
+      '.check-list',
+      '.check-item',
+      '.pill-label',
+      '.display',
+      '.btn-accent',
+      '.table',
+      '.modal',
+      '.toast',
+      '.track',
+      '.badge',
+    ]) {
       assert.ok(base.includes(component), `base.css 缺少组件 ${component}`);
     }
+    assert.ok(base.includes('.price-card.featured'), 'base.css 缺少推荐卡 .price-card.featured');
     assert.ok(base.includes('.page-wide'), 'base.css 缺少 .page-wide');
     assert.ok(base.includes('.page-narrow'), 'base.css 缺少 .page-narrow');
   });
 
-  it('用户侧与管理侧页面不再使用卡片或自带宽度容器', () => {
+  it('所有页面用卡片组织内容，且不再套自带宽度容器', () => {
     const pageFiles = listJs(PAGES_DIR).concat(listJs(ADMIN_DIR));
     for (const file of pageFiles) {
       const source = fs.readFileSync(file, 'utf8');
-      assert.doesNotMatch(source, /class="[^"]*\bcard\b/, `${path.basename(file)} 仍在使用 .card 卡片布局`);
-      assert.doesNotMatch(source, /class="[^"]*\bcontainer\b/, `${path.basename(file)} 又套了一层 .container（#app-main 已居中）`);
-      assert.doesNotMatch(source, /class="[^"]*\bstat\b/, `${path.basename(file)} 仍在使用 .stat 卡片统计块`);
+      assert.match(source, /class="[^"]*\bcard\b/, `${path.basename(file)} 应使用 .card 卡片布局`);
+      assert.doesNotMatch(source, /class="[^"]*\bcontainer\b/, `${path.basename(file)} 不应再套 .container（#app-main 已居中）`);
+      assert.doesNotMatch(source, /class="[^"]*\bstat\b/, `${path.basename(file)} 不应使用已删除的 .stat 类`);
     }
   });
 
-  it('页面不使用 emoji 作为图标', () => {
+  it('套餐页使用参考图的定价卡片结构', () => {
+    const source = fs.readFileSync(path.join(PAGES_DIR, 'plans.js'), 'utf8');
+    for (const marker of [
+      'price-grid',
+      'price-card',
+      'featured',
+      'price-topbar',
+      'price-icon',
+      'price-amount',
+      'price-divider',
+      'check-list',
+      'check-item',
+      'btn-accent',
+    ]) {
+      assert.ok(source.includes(marker), `plans.js 缺少定价卡片元素 ${marker}`);
+    }
+    assert.match(source, /plan\.featured|plan\?\.featured/, 'plans.js 应根据 plan.featured 标记推荐卡');
+  });
+
+  it('页面不使用 emoji 作为图标（图标应为内联 SVG）', () => {
     const pageFiles = listJs(PAGES_DIR).concat(listJs(ADMIN_DIR));
     for (const file of pageFiles) {
       const source = fs.readFileSync(file, 'utf8');
-      assert.ok(!EMOJI.test(source), `${path.basename(file)} 包含 emoji 图标，请改用文字或细描边 SVG`);
+      assert.ok(!EMOJI.test(source), `${path.basename(file)} 包含 emoji 图标，请改用内联 SVG`);
     }
   });
 
   it('样式文件包含设计令牌且页面样式使用私有前缀', () => {
-    const base = read('assets/css/base.css');
-    assert.ok(base.includes('--accent') && base.includes('--line'), 'base.css 应定义新设计令牌');
     const portal = read('assets/css/portal.css');
     assert.ok(/\.p-[a-z]/.test(portal), 'portal.css 应使用 p- 前缀的页面专属类');
     const admin = read('assets/css/admin.css');

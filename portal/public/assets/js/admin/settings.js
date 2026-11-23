@@ -1,5 +1,14 @@
 export const meta = { title: '系统设置', auth: true, admin: true };
 
+const ICON_GLOBE =
+  '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17"/><path d="M12 3.5c2.4 2.3 3.6 5.2 3.6 8.5S14.4 18.2 12 20.5c-2.4-2.3-3.6-5.2-3.6-8.5S9.6 5.8 12 3.5Z"/></svg>';
+
+const ICON_LINK =
+  '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 15l6-6"/><path d="M10.5 6.5 12 5a3.5 3.5 0 0 1 5 5l-1.5 1.5"/><path d="M13.5 17.5 12 19a3.5 3.5 0 0 1-5-5l1.5-1.5"/></svg>';
+
+const ICON_CARD =
+  '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="5" width="19" height="14" rx="2.5"/><path d="M2.5 9.5h19"/><path d="M6 14.5h4"/></svg>';
+
 const DEFAULTS = {
   'portal.name': '3x-ui 用户中心',
   'portal.registrationEnabled': 'true',
@@ -62,6 +71,8 @@ const GROUPS = [
   },
 ];
 
+const GROUP_ICONS = { '门户设置': ICON_GLOBE, '3x-ui 连接': ICON_LINK, '支付设置': ICON_CARD };
+
 const INT_KEYS = ['portal.minRechargeCents', 'portal.maxRechargeCents', 'xui.timeoutMs'];
 
 /** 处理 401/403：跳登录或提示无权限。 */
@@ -90,7 +101,7 @@ export async function render(root, ctx) {
         <h1 class="page-title">系统设置</h1>
         <p class="page-desc">门户、3x-ui 连接与支付渠道配置；密钥类字段留空表示不修改</p>
       </div>
-      <button type="button" class="btn btn-ghost btn-sm" data-act="reload">重新加载</button>
+      <button type="button" class="btn btn-secondary" data-act="reload">重新加载</button>
     </header>
     <div id="a-settings"><div class="loading-block">${ui.spinner()}<span>正在加载设置…</span></div></div>`;
   root.replaceChildren(wrap);
@@ -121,7 +132,7 @@ export async function render(root, ctx) {
       return `<div class="field">
         <div class="field-label a-secret-label">
           <span>${esc(def.label)}</span>
-          <span class="a-secret-state${configured ? ' a-secret-state-set' : ''}">${configured ? '已配置' : '未配置'}</span>
+          <span class="badge ${configured ? 'badge-success' : 'badge-muted'}">${configured ? '已配置' : '未配置'}</span>
         </div>
         <input id="${id}" class="input" type="password" name="${esc(key)}" data-key="${esc(key)}" data-secret="1"
           autocomplete="new-password" placeholder="${configured ? '已配置，留空则不修改' : '未配置，请输入'}">
@@ -183,24 +194,28 @@ export async function render(root, ctx) {
   function groupSection(group) {
     const fields = group.keys.map((key) => (KEYS[key].kind === 'providers' ? providersHtml() : fieldHtml(key))).join('');
     const isXui = group.title === '3x-ui 连接';
-    return `<section class="section">
-      <div class="section-head">
+    return `<section class="card">
+      <div class="card-head">
         <div>
-          <h2 class="section-title">${esc(group.title)}</h2>
-          <p class="section-desc">${esc(group.desc)}</p>
+          <h2 class="card-title"><span class="a-title-icon">${GROUP_ICONS[group.title] || ICON_GLOBE}</span>${esc(group.title)}</h2>
+          <p class="card-desc">${esc(group.desc)}</p>
         </div>
         ${isXui ? '<button type="button" class="btn btn-secondary btn-sm" data-act="test-xui">测试连接</button>' : ''}
       </div>
-      <div class="grid grid-2 a-settings-grid">${fields}</div>
-      ${isXui
-        ? `<p class="hint mt-2">测试使用已保存的配置，修改后请先保存再测试。</p><div id="a-xui-result"></div>`
-        : ''}
+      <div class="card-body">
+        <div class="grid grid-2 a-settings-grid">${fields}</div>
+        ${isXui
+          ? `<p class="hint mt-2">测试使用已保存的配置，修改后请先保存再测试。</p><div id="a-xui-result" class="a-xui-result"></div>`
+          : ''}
+      </div>
     </section>`;
   }
 
   function formHtml() {
     return `<form id="a-settings-form" novalidate>
-      ${GROUPS.map(groupSection).join('')}
+      <div class="stack-gap">
+        ${GROUPS.map(groupSection).join('')}
+      </div>
       <div class="a-form-actions">
         <button type="button" class="btn btn-ghost" data-act="reload">放弃修改</button>
         <button type="submit" class="btn btn-primary">保存设置</button>
