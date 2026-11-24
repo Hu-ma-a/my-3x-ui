@@ -793,6 +793,13 @@ EOF
     yellow "启用后台更新执行器失败，可手动执行：systemctl enable --now portal-update.timer"
     return 0
   }
+  # 立即跑一次，写入心跳，让管理后台能马上看到「更新服务运行中」
+  systemctl start portal-update.service >/dev/null 2>&1 || true
+  # 修复历史 root 写入的 update 目录/结果文件权限，保证 portal 用户可读
+  if [ -d "${PORTAL_DIR}/data/update" ]; then
+    chown -R "$PORTAL_USER:$PORTAL_USER" "${PORTAL_DIR}/data/update" 2>/dev/null || true
+    chmod -R u+rwX,g+rX "${PORTAL_DIR}/data/update" 2>/dev/null || true
+  fi
   blue "已安装后台更新执行器：管理后台「系统设置 → 版本更新」可检查并一键更新"
 }
 

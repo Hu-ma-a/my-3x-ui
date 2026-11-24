@@ -158,8 +158,8 @@ export async function render(root, ctx) {
     if (def.kind === 'bool') {
       const checked = String(value(key)).toLowerCase() === 'true';
       return `<div class="field${span}">
-        <label class="a-switch a-switch-field">
-          <span class="a-switch-label">${esc(def.label)}</span>
+        <div class="field-label">${esc(def.label)}</div>
+        <label class="a-switch-field">
           <span class="a-switch-control">
             <input type="checkbox" name="${esc(key)}" data-key="${esc(key)}" data-bool="1" ${checked ? 'checked' : ''} aria-label="${esc(def.label)}">
             <span class="a-switch-track" aria-hidden="true"></span>
@@ -385,18 +385,19 @@ export async function render(root, ctx) {
 
   function startUpdatePoll() {
     if (updateTimer) return;
-    updateTimer = setInterval(() => loadUpdate(), 2500);
+    updateTimer = setInterval(() => loadUpdate(), 1000);
   }
 
   ctx.onCleanup(stopUpdatePoll);
 
   function updateHints(status) {
+    const installScript = status.installScriptPath || '/opt/portal/scripts/install.sh';
     if (status.canApply) return '';
     if (status.deployMode === 'docker') {
       return 'Docker 部署请在宿主机执行 docker pull 拉取新镜像，然后重启容器。';
     }
     if (status.deployMode !== 'systemd') {
-      return '源码/本地部署请使用 scripts/install.sh --upgrade 升级。';
+      return `源码/本地部署请在服务器执行：sudo bash ${installScript} --upgrade（脚本不在 PATH 里，必须带路径并用 sudo）。`;
     }
     return '当前未配置更新仓库：请在 /etc/portal/portal.env 设置 PORTAL_UPDATE_REPO=你的用户名/仓库名（可选 PORTAL_UPDATE_MIRROR=镜像前缀）后重启门户。';
   }
@@ -409,6 +410,7 @@ export async function render(root, ctx) {
       return;
     }
     const runner = status.runner || {};
+    const installScript = status.installScriptPath || '/opt/portal/scripts/install.sh';
     const rows = [
       `<div class="row-item">
         <div class="row-main">
@@ -445,6 +447,7 @@ export async function render(root, ctx) {
           已经等待超过 90 秒仍无结果，可能是后台更新服务未运行或无法访问更新源。请在服务器执行：
           <div class="mono mt-1">systemctl status portal-update.timer</div>
           <div class="mono">journalctl -u portal-update.service -n 50 --no-pager</div>
+          <div class="mono">sudo bash ${esc(installScript)} --upgrade</div>
         </div>`);
       }
     } else if (status.latestVersion) {
@@ -477,7 +480,7 @@ export async function render(root, ctx) {
 
     const hint = updateHints(status);
     const runnerWarning = status.canApply && !runner.healthy
-      ? '后台更新服务未运行：请确认 portal-update.timer 已启用（sudo systemctl enable --now portal-update.timer），或重新执行 install.sh --upgrade 安装更新服务。'
+      ? `后台更新服务未运行：请确认 portal-update.timer 已启用（sudo systemctl enable --now portal-update.timer），或重新执行 sudo bash ${installScript} --upgrade 安装更新服务。`
       : '';
     const alerts = [];
     if (!status.canApply && hint) alerts.push(`<div class="alert alert-warning mb-2">${esc(hint)}</div>`);
@@ -539,6 +542,18 @@ export async function render(root, ctx) {
   }
 
   async function checkUpdate(btn) {
+    const runner = (lastUpdateStatus && lastUpdateStatus.runner) || {};
+    if (lastUpdateStatus && lastUpdateStatus.canApply && !runner.healthy) {
+      const installScript = lastUpdateStatus.installScriptPath || '/opt/portal/scripts/install.sh';
+      setUpdateFeedback(
+        `后台更新服务未运行，检查请求未发送。请先执行 sudo systemctl enable --now portal-update.timer；如仍未运行，执行 sudo bash ${installScript} --upgrade 重新安装更新服务。`,
+        'danger',
+      );
+      ctx.toast('后台更新服务未运行，请先启用 portal-update.timer', 'error');
+      btn.disabled = false;
+      btn.textContent = '检查更新';
+      return;
+    }
     btn.disabled = true;
     btn.textContent = '提交中…';
     setUpdateFeedback('正在提交检查请求…', 'info');

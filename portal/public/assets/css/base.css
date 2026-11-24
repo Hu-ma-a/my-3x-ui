@@ -1068,6 +1068,7 @@ html[data-theme='dark'] .price-card.featured {
 
 /* ============ 徽标 ============ */
 .badge {
+  --pulse-color: var(--muted);
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -1086,26 +1087,48 @@ html[data-theme='dark'] .price-card.featured {
   border-radius: 50%;
   background: currentColor;
   flex: none;
+  animation: badge-pulse 2.8s ease-in-out infinite;
 }
 .badge-success {
+  --pulse-color: var(--success);
   background: var(--success-soft);
   color: var(--success);
 }
 .badge-warning {
+  --pulse-color: var(--warning);
   background: var(--warning-soft);
   color: var(--warning);
 }
 .badge-danger {
+  --pulse-color: var(--danger);
   background: var(--danger-soft);
   color: var(--danger);
 }
 .badge-info {
+  --pulse-color: var(--accent-600);
   background: var(--accent-soft);
   color: var(--accent-600);
 }
 .badge-muted {
+  --pulse-color: var(--muted);
   background: var(--surface-2);
   color: var(--muted);
+}
+@keyframes badge-pulse {
+  0%,
+  100% {
+    opacity: 0.35;
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--pulse-color) 45%, transparent);
+  }
+  50% {
+    opacity: 1;
+    box-shadow: 0 0 0 5px color-mix(in srgb, var(--pulse-color) 0%, transparent);
+  }
+}
+/* 管理员/角色类徽标（顶栏「管理员」、用户管理「管理员」、管理员页「当前登录」）同样呼吸 */
+.badge-info::before,
+.topbar .badge::before {
+  animation: badge-pulse 2.4s ease-in-out infinite;
 }
 .pill {
   display: inline-flex;
@@ -1306,6 +1329,9 @@ html[data-theme='dark'] .price-card.featured {
   .fade-in,
   .toast,
   .modal-backdrop {
+    animation: none;
+  }
+  .badge::before {
     animation: none;
   }
   .card-interactive,

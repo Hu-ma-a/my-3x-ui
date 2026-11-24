@@ -94,7 +94,7 @@ export async function render(root, ctx) {
         : '<span class="badge badge-success">生效中</span>';
     const accountBadge = user.status === 'disabled'
       ? '<span class="badge badge-danger">已禁用</span>'
-      : '<span class="badge badge-success p-status-live">正常</span>';
+      : '<span class="badge badge-success">正常</span>';
     const deviceText = deviceLimit == null ? '设备数未知' : deviceLimit === 0 ? '设备不限' : `${deviceLimit} 台设备`;
 
     const usedText = usedBytes == null ? '—' : ctx.ui.bytes(usedBytes);
@@ -223,7 +223,7 @@ export async function render(root, ctx) {
       <section class="card p-traffic-card">
         <div class="card-head">
           <h2 class="card-title">流量使用</h2>
-          <span class="badge ${liveAvailable ? 'badge-success p-status-live' : 'badge-muted'}">${liveAvailable ? '实时数据' : '缓存数据'}</span>
+          <span class="badge ${liveAvailable ? 'badge-success' : 'badge-muted'}">${liveAvailable ? '实时数据' : '缓存数据'}</span>
         </div>
         <div class="card-body">${trafficHtml}</div>
       </section>`;

@@ -81,6 +81,15 @@ describe('一键安装与发布产物', () => {
     assert.ok(workflow.includes('portal.tar.gz.sha256'), '发布包需要附带 sha256 校验文件');
   });
 
+  it('更新执行器写出的心跳/结果对 portal 用户可读', () => {
+    const runner = fs.readFileSync(path.join(PORTAL, 'scripts/update-runner.mjs'), 'utf8');
+    assert.ok(runner.includes('chownSync') && runner.includes('chmodSync'), '更新执行器需要把结果文件归属改为 portal 用户');
+    assert.ok(runner.includes('shareWithPortal'), '更新执行器应修复心跳/结果文件权限');
+
+    const script = read('scripts/install.sh');
+    assert.ok(script.includes('data/update'), 'install.sh 应修复 data/update 目录权限');
+  });
+
   it('SSH 命令行工具：安装 portal 命令并可重置密码', () => {
     const cli = fs.readFileSync(path.join(PORTAL, 'scripts/portal-cli.mjs'), 'utf8');
     assert.ok(cli.startsWith('#!/usr/bin/env node'), 'portal-cli.mjs 需要 node shebang');

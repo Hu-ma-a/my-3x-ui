@@ -7,12 +7,15 @@
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import {
+  chmodSync,
+  chownSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
   renameSync,
   rmSync,
+  statSync,
   writeFileSync,
 } from 'node:fs';
 import os from 'node:os';
@@ -40,11 +43,41 @@ function readJson(file) {
   }
 }
 
+function dataDirOwner() {
+  try {
+    return statSync(DATA_DIR);
+  } catch {
+    return null;
+  }
+}
+
+function shareWithPortal(target) {
+  const owner = dataDirOwner();
+  if (!owner) return;
+  try {
+    chownSync(target, owner.uid, owner.gid);
+    chmodSync(target, 0o640);
+  } catch {
+    // 权限修复失败不应中断更新流程。
+  }
+}
+
 function writeJsonAtomic(file, value) {
-  mkdirSync(path.dirname(file), { recursive: true });
+  const dir = path.dirname(file);
+  mkdirSync(dir, { recursive: true });
+  const owner = dataDirOwner();
+  if (owner) {
+    try {
+      chownSync(dir, owner.uid, owner.gid);
+      chmodSync(dir, 0o750);
+    } catch {
+      // 目录权限修复失败时继续写文件。
+    }
+  }
   const tmp = `${file}.${process.pid}.tmp`;
   writeFileSync(tmp, `${JSON.stringify(value, null, 2)}\n`, { mode: 0o600 });
   renameSync(tmp, file);
+  shareWithPortal(file);
 }
 
 function writeHeartbeat(action = 'idle') {

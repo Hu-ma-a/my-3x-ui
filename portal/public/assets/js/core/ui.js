@@ -130,11 +130,8 @@ function tone(status) {
   return STATUS_MAP[status]?.tone || 'muted';
 }
 
-const WAITING_STATUSES = new Set(['pending', 'paid', 'provisioning', 'sync_pending']);
-
 function badge(status) {
-  const wait = WAITING_STATUSES.has(status) ? ' p-status-wait' : '';
-  return `<span class="badge badge-${tone(status)}${wait}">${escapeHtml(statusText(status))}</span>`;
+  return `<span class="badge badge-${tone(status)}">${escapeHtml(statusText(status))}</span>`;
 }
 
 function qs(root, selector) {

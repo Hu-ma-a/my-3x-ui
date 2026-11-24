@@ -22,6 +22,12 @@ function makeService(overrides = {}) {
   return { service, rootDir, dataDir };
 }
 
+function markRunner(dataDir, at = Date.now()) {
+  const updateDir = path.join(dataDir, 'update');
+  fs.mkdirSync(updateDir, { recursive: true });
+  fs.writeFileSync(path.join(updateDir, 'heartbeat.json'), JSON.stringify({ at, action: 'idle' }));
+}
+
 describe('门户更新服务', () => {
   it('版本比较与标签归一化', () => {
     assert.equal(compareVersions('1.0.1', '1.0.0'), 1);
@@ -61,6 +67,7 @@ describe('门户更新服务', () => {
 
   it('检查更新任务写入 request，运行器结果可被读取并比较版本', () => {
     const { service, dataDir } = makeService();
+    markRunner(dataDir);
     const queued = service.enqueue('check');
     assert.equal(queued.queued, true);
 
@@ -113,6 +120,7 @@ describe('门户更新服务', () => {
 
   it('检查请求超时后不再阻塞重新发起', () => {
     const { service, dataDir } = makeService();
+    markRunner(dataDir);
     const updateDir = path.join(dataDir, 'update');
     fs.mkdirSync(updateDir, { recursive: true });
     fs.writeFileSync(
@@ -126,6 +134,14 @@ describe('门户更新服务', () => {
     const queued = service.enqueue('check');
     assert.equal(queued.queued, true);
     assert.equal(service.status().pending, true);
+  });
+
+  it('后台更新服务没有心跳时直接拒绝检查请求', () => {
+    const { service } = makeService();
+    assert.throws(() => service.enqueue('check'), (err) => err.code === 'update_runner_unavailable');
+    const status = service.status();
+    assert.equal(status.pending, false);
+    assert.equal(status.runner.healthy, false);
   });
 
   it('非 systemd 部署或未配置仓库时拒绝一键更新', () => {

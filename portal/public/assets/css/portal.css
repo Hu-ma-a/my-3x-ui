@@ -630,41 +630,6 @@ html[data-theme='dark'] .p-recharge-note {
   gap: 10px;
 }
 
-/* ============ 状态圆点：缓慢呼吸 ============ */
-.p-status-live::before,
-.p-status-wait::before {
-  width: 7px;
-  height: 7px;
-  animation: p-status-pulse 2.8s ease-in-out infinite;
-}
-
-.p-status-live::before {
-  --pulse-color: var(--success);
-}
-
-.p-status-wait::before {
-  --pulse-color: var(--warning);
-}
-
-@keyframes p-status-pulse {
-  0%,
-  100% {
-    opacity: 0.35;
-    box-shadow: 0 0 0 0 color-mix(in srgb, var(--pulse-color) 45%, transparent);
-  }
-  50% {
-    opacity: 1;
-    box-shadow: 0 0 0 5px color-mix(in srgb, var(--pulse-color) 0%, transparent);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .p-status-live::before,
-  .p-status-wait::before {
-    animation: none;
-  }
-}
-
 /* ============ 移动端 ============ */
 @media (max-width: 760px) {
   .p-auth {

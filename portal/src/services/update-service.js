@@ -82,12 +82,21 @@ export class UpdateService {
     return readJson(this.resultPath);
   }
 
+  runnerHealth() {
+    const heartbeat = readJson(this.heartbeatPath);
+    const lastHeartbeatAt = heartbeat?.at ? Number(heartbeat.at) : null;
+    return {
+      lastHeartbeatAt,
+      healthy: Boolean(lastHeartbeatAt && Date.now() - lastHeartbeatAt < 5 * 60 * 1000),
+      lastAction: heartbeat?.action || '',
+    };
+  }
+
   status() {
     const currentVersion = this.currentVersion();
     const result = this.readResult();
     const request = this.readRequest();
-    const heartbeat = readJson(this.heartbeatPath);
-    const heartbeatAt = heartbeat?.at ? Number(heartbeat.at) : null;
+    const runner = this.runnerHealth();
     const latestVersion = result?.latestTag ? tagVersion(result.latestTag) : result?.latestVersion || '';
     const hasLatest = Boolean(latestVersion && parseVersion(latestVersion));
     const upToDate = hasLatest ? compareVersions(currentVersion, latestVersion) >= 0 : null;
@@ -106,14 +115,11 @@ export class UpdateService {
       canApply: this.canApply,
       repo: this.repo,
       mirrorConfigured: Boolean(this.mirror),
+      installScriptPath: path.join(this.config.rootDir, 'scripts', 'install.sh'),
       pending,
       requestStale: Boolean(request) && !pending,
       request: request ? { action: request.action, requestedAt: request.requestedAt } : null,
-      runner: {
-        lastHeartbeatAt: heartbeatAt,
-        healthy: Boolean(heartbeatAt && Date.now() - heartbeatAt < 5 * 60 * 1000),
-        lastAction: heartbeat?.action || '',
-      },
+      runner,
       result: result
         ? {
             status: result.status || '',
@@ -132,13 +138,19 @@ export class UpdateService {
     if (this.deployMode !== 'systemd') {
       throw errors.badRequest(
         'update_unavailable',
-        '当前部署方式不支持门户内一键更新：Docker 部署请拉取新镜像后重启容器；源码部署请使用 scripts/install.sh --upgrade。',
+        `当前部署方式不支持门户内一键更新：Docker 部署请拉取新镜像后重启容器；源码部署请在服务器执行 sudo bash ${path.join(this.config.rootDir, 'scripts', 'install.sh')} --upgrade。`,
       );
     }
     if (!REPO_PATTERN.test(this.repo)) {
       throw errors.badRequest(
         'update_not_configured',
         '未配置更新仓库：请在 /etc/portal/portal.env 设置 PORTAL_UPDATE_REPO=你的用户名/仓库名（更新镜像可用 PORTAL_UPDATE_MIRROR）。',
+      );
+    }
+    if (!this.runnerHealth().healthy) {
+      throw errors.badRequest(
+        'update_runner_unavailable',
+        `后台更新服务未运行：请执行 sudo systemctl enable --now portal-update.timer，或 sudo bash ${path.join(this.config.rootDir, 'scripts', 'install.sh')} --upgrade 安装更新服务。`,
       );
     }
     const existing = this.readRequest();
