@@ -132,6 +132,13 @@ export function listAdmins(store) {
   return store.all(`SELECT ${USER_COLUMNS} FROM users WHERE role = 'admin' ORDER BY id ASC`);
 }
 
+export function listAll(store, { role = '' } = {}) {
+  if (role) {
+    return store.all(`SELECT ${USER_COLUMNS} FROM users WHERE role = ? ORDER BY id ASC`, role);
+  }
+  return store.all(`SELECT ${USER_COLUMNS} FROM users ORDER BY id ASC`);
+}
+
 export function countActiveAdmins(store) {
   const row = store.get("SELECT COUNT(*) AS total FROM users WHERE role = 'admin' AND status = 'active'");
   return Number(row.total);

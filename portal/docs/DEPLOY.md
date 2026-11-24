@@ -595,6 +595,13 @@ docker exec portal node -e "fetch('http://127.0.0.1:8090/api/health').then(r=>r.
 # 备份（在线、一致）
 sqlite3 /opt/portal/data/portal.db ".backup '/var/backups/portal-$(date +%F).db'"
 
+# 修改管理员/用户密码（systemd 安装自带 portal 命令）
+sudo portal list-admins
+sudo portal set-password admin
+sudo portal set-password --generate admin
+# Docker 部署：
+docker exec -it portal node scripts/portal-cli.mjs set-password admin
+
 # nginx
 sudo nginx -t && sudo systemctl reload nginx
 sudo tail -f /var/log/nginx/access.log | grep -E 'payment|api'

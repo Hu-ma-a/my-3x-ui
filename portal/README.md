@@ -450,6 +450,22 @@ sudo bash /opt/portal/scripts/install.sh --check-update --repo 你的用户名/m
 
 > 后台一键更新仅适用于 **systemd 部署**（服务以 `portal` 用户运行、代码目录只读，实际更新由 root 定时任务完成）。Docker 部署请在宿主机 `docker pull` 新镜像后重启容器；源码/本地部署请执行 `install.sh --upgrade`。数据库与 `/etc/portal/portal.env` 会保留，升级前数据库自动备份到 `/var/backups/portal/`。
 
+## 修改密码（SSH / 服务器命令行）
+
+systemd 一键安装会同时安装 `portal` 命令，忘记后台密码或无法登录网页时可在服务器上直接改：
+
+```bash
+sudo portal set-password                     # 默认修改第一个管理员
+sudo portal set-password admin               # 指定管理员/用户账号
+sudo portal set-password --generate admin    # 生成随机密码并打印一次
+sudo portal list-admins                      # 查看管理员账号
+sudo portal list-users                       # 查看全部账号
+```
+
+- 修改成功后该账号所有登录会话立即失效，用新密码重新登录即可；
+- 没有 `portal` 命令（如 Docker 部署）时：`docker exec -it portal node scripts/portal-cli.mjs set-password admin`；
+- 也可以用 node 直接运行：`sudo node /opt/portal/scripts/portal-cli.mjs set-password admin`。
+
 ## 安全建议
 
 - **必须上 HTTPS**：会话 Cookie、登录密码、支付回调都在公网上跑，nginx 示例已含 TLS 与安全响应头。

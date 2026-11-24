@@ -80,4 +80,18 @@ describe('一键安装与发布产物', () => {
     assert.ok(workflow.includes('portal/VERSION'), '发布包需要写入版本号文件');
     assert.ok(workflow.includes('portal.tar.gz.sha256'), '发布包需要附带 sha256 校验文件');
   });
+
+  it('SSH 命令行工具：安装 portal 命令并可重置密码', () => {
+    const cli = fs.readFileSync(path.join(PORTAL, 'scripts/portal-cli.mjs'), 'utf8');
+    assert.ok(cli.startsWith('#!/usr/bin/env node'), 'portal-cli.mjs 需要 node shebang');
+    assert.ok(cli.includes("'set-password'"), '命令行工具应支持 set-password');
+    assert.ok(cli.includes('list-admins'), '命令行工具应支持 list-admins');
+
+    const script = read('scripts/install.sh');
+    assert.ok(script.includes('/usr/local/bin/portal'), 'install.sh 应安装 portal 命令');
+    assert.ok(script.includes('portal-cli.mjs'), 'portal 命令应调用 portal-cli.mjs');
+
+    const readme = read('README.md');
+    assert.ok(readme.includes('portal set-password'), 'README 应说明 portal set-password 用法');
+  });
 });

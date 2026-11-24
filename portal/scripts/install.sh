@@ -796,6 +796,16 @@ EOF
   blue "已安装后台更新执行器：管理后台「系统设置 → 版本更新」可检查并一键更新"
 }
 
+install_cli() {
+  cat >/usr/local/bin/portal <<EOF
+#!/usr/bin/env bash
+# 用户门户命令行工具（由 install.sh 生成）：sudo portal set-password
+exec "${NODE_BIN}" "${PORTAL_DIR}/scripts/portal-cli.mjs" --env-file "${PORTAL_ENV_FILE}" "\$@"
+EOF
+  chmod 755 /usr/local/bin/portal
+  blue "已安装命令行工具：sudo portal set-password（修改管理员/用户密码）"
+}
+
 check_update() {
   local repo="$REPO" mirror="$GH_MIRROR" current latest tag effective url
   if [ -f "$PORTAL_ENV_FILE" ]; then
@@ -839,6 +849,9 @@ do_uninstall() {
   rm -f "$PORTAL_UNIT" /etc/systemd/system/portal-xui-sync.timer /etc/systemd/system/portal-xui-sync.service \
     "$UPDATE_UNIT" "$UPDATE_TIMER" "$UPDATE_RUNNER"
   rm -rf /usr/local/lib/portal
+  if [ -f /usr/local/bin/portal ] && grep -q 'portal-cli.mjs' /usr/local/bin/portal 2>/dev/null; then
+    rm -f /usr/local/bin/portal
+  fi
   systemctl daemon-reload 2>/dev/null || true
   echo "已移除 systemd 服务。程序目录 ${PORTAL_DIR}、数据目录 ${PORTAL_DIR}/data 与 ${PORTAL_ENV_FILE} 保留。"
   exit 0
@@ -906,6 +919,7 @@ install_systemd() {
   fi
   write_unit
   install_update_units
+  install_cli
 
   blue "启动服务"
   systemctl daemon-reload
