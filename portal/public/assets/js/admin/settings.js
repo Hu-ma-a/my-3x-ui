@@ -31,11 +31,11 @@ const DEFAULTS = {
 
 const KEYS = {
   'portal.name': { label: '门户名称', kind: 'text', required: true, span2: true },
-  'portal.currency': { label: '货币', kind: 'text', required: true, hint: '当前仅支持 CNY' },
+  'portal.currency': { label: '货币', kind: 'select', required: true, options: [['CNY', '人民币 CNY（¥ 元）'], ['USD', '美元 USD（$）']], hint: '影响门户内所有金额的显示与录入单位；支付网关仍按渠道要求扣款' },
   'portal.registrationEnabled': { label: '开放注册', kind: 'bool', hint: '关闭后新用户无法自助注册，可由管理员在面板侧维护' },
   'portal.manualPayInstructions': { label: '人工转账说明', kind: 'textarea' },
-  'portal.minRechargeCents': { label: '最低充值金额（分）', kind: 'int', min: 0 },
-  'portal.maxRechargeCents': { label: '最高充值金额（分）', kind: 'int', min: 0 },
+  'portal.minRechargeCents': { label: '最低充值金额', kind: 'money', min: 0.01 },
+  'portal.maxRechargeCents': { label: '最高充值金额', kind: 'money', min: 0.01 },
   'portal.defaultInboundIds': { label: '默认入站 ID（逗号分隔）', kind: 'text', hint: '套餐未绑定入站时使用；留空则取面板第一个入站' },
   'portal.subscriptionBaseUrl': { label: '订阅基地址', kind: 'text', hint: '留空时自动从面板设置推导' },
   'xui.url': { label: '面板地址', kind: 'text', required: true, hint: '例如 http://127.0.0.1:2053' },
@@ -158,8 +158,13 @@ export async function render(root, ctx) {
     if (def.kind === 'bool') {
       const checked = String(value(key)).toLowerCase() === 'true';
       return `<div class="field${span}">
-        <div class="field-label">${esc(def.label)}</div>
-        <label class="checkbox-row"><input type="checkbox" name="${esc(key)}" data-key="${esc(key)}" data-bool="1" ${checked ? 'checked' : ''}> 开启</label>
+        <label class="a-switch a-switch-field">
+          <span class="a-switch-label">${esc(def.label)}</span>
+          <span class="a-switch-control">
+            <input type="checkbox" name="${esc(key)}" data-key="${esc(key)}" data-bool="1" ${checked ? 'checked' : ''} aria-label="${esc(def.label)}">
+            <span class="a-switch-track" aria-hidden="true"></span>
+          </span>
+        </label>
         ${hint}
       </div>`;
     }
@@ -176,6 +181,19 @@ export async function render(root, ctx) {
       return `<div class="field${span}">
         <label class="field-label" for="${id}">${esc(def.label)}</label>
         <textarea id="${id}" class="textarea" rows="2" name="${esc(key)}" data-key="${esc(key)}">${esc(value(key))}</textarea>
+        ${errorBox}${hint}
+      </div>`;
+    }
+    if (def.kind === 'money') {
+      const cents = Number(value(key));
+      const display = Number.isFinite(cents) ? (cents / 100).toFixed(2) : '';
+      return `<div class="field${span}">
+        <label class="field-label" for="${id}">${esc(def.label)}（${esc(ui.currencyName())}）</label>
+        <div class="input-wrap">
+          <span class="input-prefix" aria-hidden="true">${esc(ui.currencySymbol())}</span>
+          <input id="${id}" class="input" type="number" step="0.01" min="${def.min != null ? def.min : 0.01}"
+            name="${esc(key)}" data-key="${esc(key)}" data-money="1" value="${esc(display)}">
+        </div>
         ${errorBox}${hint}
       </div>`;
     }
@@ -199,9 +217,15 @@ export async function render(root, ctx) {
     const all = [['mock', '模拟支付'], ['manual', '人工转账'], ['epay', '易支付']];
     return `<div class="field a-span-2">
       <div class="field-label">启用的支付方式</div>
-      <div class="a-check-row">
+      <div class="a-switch-grid">
         ${all.map(([v, label]) =>
-          `<label class="checkbox-row"><input type="checkbox" data-provider="${esc(v)}" ${enabled.includes(v) ? 'checked' : ''}> ${esc(label)}</label>`).join('')}
+          `<label class="a-switch">
+            <span class="a-switch-label">${esc(label)}</span>
+            <span class="a-switch-control">
+              <input type="checkbox" data-provider="${esc(v)}" ${enabled.includes(v) ? 'checked' : ''} aria-label="${esc(label)}">
+              <span class="a-switch-track" aria-hidden="true"></span>
+            </span>
+          </label>`).join('')}
       </div>
       <p class="hint">用户在线支付时只能选择已启用的方式，余额支付不受影响。</p>
     </div>`;
@@ -265,6 +289,11 @@ export async function render(root, ctx) {
         payload[key] = el.checked ? 'true' : 'false';
         return;
       }
+      if (el.hasAttribute('data-money')) {
+        const yuan = Number(el.value);
+        payload[key] = el.value === '' || !Number.isFinite(yuan) ? '' : String(Math.round(yuan * 100));
+        return;
+      }
       if (el.hasAttribute('data-secret')) {
         if (el.value !== '') payload[key] = el.value;
         return;
@@ -285,7 +314,9 @@ export async function render(root, ctx) {
       setError(form, key, msg);
     };
     if (!payload['portal.name']) fail('portal.name', '请输入门户名称');
-    if (!payload['portal.currency']) fail('portal.currency', '请输入货币代码，如 CNY');
+    if (!/^[A-Z]{3}$/.test(String(payload['portal.currency'] || '').toUpperCase())) {
+      fail('portal.currency', '请选择货币（CNY 或 USD）');
+    }
     if (!payload['xui.url']) fail('xui.url', '请输入面板地址');
 
     INT_KEYS.forEach((key) => {
@@ -295,7 +326,7 @@ export async function render(root, ctx) {
         return;
       }
       const n = Number(raw);
-      if (!Number.isInteger(n) || n < 0) fail(key, '请输入不小于 0 的整数');
+      if (!Number.isInteger(n) || n < 0) fail(key, '请输入有效金额');
       else if (key === 'xui.timeoutMs' && (n < 1000 || n > 120000)) fail(key, '超时需在 1000–120000 毫秒之间');
       else if (key === 'portal.minRechargeCents' && n < 1) fail(key, '最低充值金额需大于 0');
     });
@@ -336,6 +367,14 @@ export async function render(root, ctx) {
 
   let updateTimer = null;
   let updateApplyRequested = false;
+  let updateCheckRequested = false;
+  let updateFeedback = null;
+  let lastUpdateStatus = null;
+
+  function setUpdateFeedback(message, tone = 'info') {
+    updateFeedback = message ? { message, tone } : null;
+    if (lastUpdateStatus) renderUpdate(lastUpdateStatus);
+  }
 
   function stopUpdatePoll() {
     if (updateTimer) {
@@ -369,6 +408,7 @@ export async function render(root, ctx) {
       updateBox.innerHTML = '<div class="alert alert-danger">读取版本信息失败</div>';
       return;
     }
+    const runner = status.runner || {};
     const rows = [
       `<div class="row-item">
         <div class="row-main">
@@ -377,15 +417,36 @@ export async function render(root, ctx) {
         </div>
         <div class="row-side mono">v${esc(status.currentVersion)}</div>
       </div>`,
+      `<div class="row-item">
+        <div class="row-main">
+          <div class="row-title">更新服务</div>
+          <div class="row-sub">${runner.lastHeartbeatAt
+            ? `最近心跳 ${esc(ui.dateTime(runner.lastHeartbeatAt))}`
+            : '尚未收到后台更新服务的心跳（检查更新需要它运行）'}</div>
+        </div>
+        <div class="row-side">${runner.healthy
+          ? '<span class="badge badge-success">运行中</span>'
+          : '<span class="badge badge-warning">未运行</span>'}</div>
+      </div>`,
     ];
+
+    const pendingSince = Number(status.request?.requestedAt || 0);
+    const waitedSeconds = pendingSince ? Math.max(0, Math.round((Date.now() - pendingSince) / 1000)) : 0;
     if (status.pending) {
       rows.push(`<div class="row-item">
         <div class="row-main">
           <div class="row-title">${status.request?.action === 'apply' ? '正在更新…' : '正在检查更新…'}</div>
-          <div class="row-sub">更新任务已交给系统服务执行，通常 1 分钟内完成，请保持页面打开</div>
+          <div class="row-sub">已等待 ${waitedSeconds} 秒；后台更新服务通常会在 30 秒内处理，请保持页面打开</div>
         </div>
         <div class="row-side"><span class="spinner"></span></div>
       </div>`);
+      if (waitedSeconds > 90) {
+        rows.push(`<div class="alert alert-warning mt-2">
+          已经等待超过 90 秒仍无结果，可能是后台更新服务未运行或无法访问更新源。请在服务器执行：
+          <div class="mono mt-1">systemctl status portal-update.timer</div>
+          <div class="mono">journalctl -u portal-update.service -n 50 --no-pager</div>
+        </div>`);
+      }
     } else if (status.latestVersion) {
       rows.push(`<div class="row-item">
         <div class="row-main">
@@ -404,32 +465,65 @@ export async function render(root, ctx) {
         </div>
       </div>`);
     }
+    if (status.requestStale) {
+      rows.push(`<div class="alert alert-warning mt-2">上次检查请求已超时（后台更新服务可能未运行），可以直接重新点击「检查更新」。</div>`);
+    }
     if (status.result?.status === 'failed') {
-      rows.push(`<div class="alert alert-danger mt-2">更新失败：${esc(status.result.message || '未知错误')}</div>`);
+      rows.push(`<div class="alert alert-danger mt-2">更新/检查失败：${esc(status.result.message || '未知错误')}</div>`);
     }
     if (status.result?.status === 'applied') {
       rows.push('<div class="alert alert-success mt-2">更新已应用，门户正在重启，页面稍后会自动刷新。</div>');
     }
+
     const hint = updateHints(status);
-    updateBox.innerHTML = `<div class="rows">${rows.join('')}</div>${hint ? `<p class="hint mt-2">${esc(hint)}</p>` : ''}`;
+    const runnerWarning = status.canApply && !runner.healthy
+      ? '后台更新服务未运行：请确认 portal-update.timer 已启用（sudo systemctl enable --now portal-update.timer），或重新执行 install.sh --upgrade 安装更新服务。'
+      : '';
+    const alerts = [];
+    if (!status.canApply && hint) alerts.push(`<div class="alert alert-warning mb-2">${esc(hint)}</div>`);
+    else if (runnerWarning) alerts.push(`<div class="alert alert-warning mb-2">${esc(runnerWarning)}</div>`);
+    const toneClass = updateFeedback ? `alert-${updateFeedback.tone}` : '';
+    const feedbackHtml = updateFeedback
+      ? `<div class="alert ${toneClass} mb-2" id="a-update-feedback">${esc(updateFeedback.message)}</div>`
+      : '';
+
+    updateBox.innerHTML = `${feedbackHtml}${alerts.join('')}<div class="rows">${rows.join('')}</div>`;
 
     const checkBtn = wrap.querySelector('[data-act="update-check"]');
     const applyBtn = wrap.querySelector('[data-act="update-apply"]');
-    if (checkBtn) checkBtn.disabled = !status.canApply || status.pending;
+    if (checkBtn) {
+      checkBtn.disabled = status.pending;
+      checkBtn.textContent = status.pending ? '检查中…' : '检查更新';
+    }
     if (applyBtn) {
       applyBtn.classList.toggle('hidden', !(status.canApply && !status.upToDate && status.latestVersion && !status.pending));
-      applyBtn.disabled = status.pending;
+      applyBtn.disabled = status.pending || !runner.healthy;
     }
   }
 
   async function loadUpdate() {
     try {
       const status = (await ctx.api.admin.updateStatus()) || {};
+      lastUpdateStatus = status;
       renderUpdate(status);
       if (status.pending) startUpdatePoll();
       else {
         stopUpdatePoll();
-        if (updateApplyRequested && status.result?.status === 'applied') {
+        const resultStatus = status.result?.status;
+        if (updateCheckRequested && status.result?.at) {
+          updateCheckRequested = false;
+          if (resultStatus === 'checked') {
+            const message = status.upToDate
+              ? `检查完成：当前已是最新版本（v${status.currentVersion}）`
+              : `检查完成：发现新版本 v${status.latestVersion}（当前 v${status.currentVersion}），可点击「立即更新」`;
+            ctx.toast(status.upToDate ? '当前已是最新版本' : `发现新版本 v${status.latestVersion}`, 'success');
+            setUpdateFeedback(message, status.upToDate ? 'success' : 'info');
+          } else if (resultStatus === 'failed') {
+            ctx.toast(`检查失败：${status.result.message || '未知错误'}`, 'error');
+            setUpdateFeedback(`检查失败：${status.result.message || '未知错误'}`, 'danger');
+          }
+        }
+        if (updateApplyRequested && resultStatus === 'applied') {
           updateApplyRequested = false;
           ctx.toast('更新完成，页面即将刷新…', 'success');
           setTimeout(() => window.location.reload(), 2500);
@@ -446,15 +540,21 @@ export async function render(root, ctx) {
 
   async function checkUpdate(btn) {
     btn.disabled = true;
+    btn.textContent = '提交中…';
+    setUpdateFeedback('正在提交检查请求…', 'info');
     try {
       await ctx.api.admin.checkUpdate();
-      ctx.toast('已发起检查，正在等待结果…', 'success');
+      updateCheckRequested = true;
+      ctx.toast('已提交检查请求，等待后台更新服务处理…', 'success');
+      setUpdateFeedback('已提交检查请求，正在等待后台更新服务处理（通常 30 秒内完成，最长等待 90 秒）…', 'info');
       await loadUpdate();
       startUpdatePoll();
     } catch (err) {
       if (handleAuthError(ctx, err)) return;
       ctx.toast(err && err.message ? err.message : '检查更新失败', 'error');
+      setUpdateFeedback(err && err.message ? err.message : '检查更新失败，请稍后重试', 'danger');
       btn.disabled = false;
+      btn.textContent = '检查更新';
     }
   }
 
@@ -490,6 +590,8 @@ export async function render(root, ctx) {
       if (first) first.focus();
       return;
     }
+    const previousCurrency = String(value('portal.currency') || 'CNY').toUpperCase();
+    const nextCurrency = String(payload['portal.currency'] || 'CNY').toUpperCase();
     const btn = form.querySelector('button[type="submit"]');
     const label = btn.textContent;
     btn.disabled = true;
@@ -497,6 +599,11 @@ export async function render(root, ctx) {
     try {
       await ctx.api.admin.updateSettings(payload);
       ctx.toast('设置已保存', 'success');
+      if (nextCurrency !== previousCurrency) {
+        ui.setCurrency(nextCurrency);
+        window.location.reload();
+        return;
+      }
       await load();
     } catch (err) {
       if (handleAuthError(ctx, err)) return;

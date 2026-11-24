@@ -31,7 +31,7 @@ describe('门户更新服务', () => {
     assert.equal(tagVersion('v1.2.3'), '1.2.3');
   });
 
-  it('初始状态读取 VERSION，尚无更新结果', () => {
+  it('初始状态读取 VERSION，尚无更新结果与心跳', () => {
     const { service } = makeService();
     const status = service.status();
     assert.equal(status.currentVersion, '1.0.0');
@@ -40,6 +40,23 @@ describe('门户更新服务', () => {
     assert.equal(status.pending, false);
     assert.equal(status.canApply, true);
     assert.equal(status.repo, 'me/my-3x-ui');
+    assert.equal(status.runner.healthy, false);
+    assert.equal(status.runner.lastHeartbeatAt, null);
+  });
+
+  it('读取更新执行器心跳，判断服务是否在运行', () => {
+    const { service, dataDir } = makeService();
+    const updateDir = path.join(dataDir, 'update');
+    fs.mkdirSync(updateDir, { recursive: true });
+
+    fs.writeFileSync(path.join(updateDir, 'heartbeat.json'), JSON.stringify({ at: Date.now(), action: 'idle' }));
+    const healthy = service.status().runner;
+    assert.equal(healthy.healthy, true);
+    assert.equal(healthy.lastAction, 'idle');
+    assert.ok(healthy.lastHeartbeatAt > 0);
+
+    fs.writeFileSync(path.join(updateDir, 'heartbeat.json'), JSON.stringify({ at: Date.now() - 10 * 60 * 1000 }));
+    assert.equal(service.status().runner.healthy, false);
   });
 
   it('检查更新任务写入 request，运行器结果可被读取并比较版本', () => {
@@ -92,6 +109,23 @@ describe('门户更新服务', () => {
     const status = service.status();
     assert.equal(status.result.status, 'failed');
     assert.match(status.result.message, /404/);
+  });
+
+  it('检查请求超时后不再阻塞重新发起', () => {
+    const { service, dataDir } = makeService();
+    const updateDir = path.join(dataDir, 'update');
+    fs.mkdirSync(updateDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(updateDir, 'request.json'),
+      JSON.stringify({ action: 'check', repo: 'me/my-3x-ui', requestedAt: Date.now() - 5 * 60 * 1000 }),
+    );
+    const status = service.status();
+    assert.equal(status.pending, false);
+    assert.equal(status.requestStale, true);
+
+    const queued = service.enqueue('check');
+    assert.equal(queued.queued, true);
+    assert.equal(service.status().pending, true);
   });
 
   it('非 systemd 部署或未配置仓库时拒绝一键更新', () => {

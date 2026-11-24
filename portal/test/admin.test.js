@@ -160,15 +160,27 @@ describe('管理后台', () => {
     assert.ok(before.items.some((item) => item.key === 'portal.name'));
 
     const updated = expectOk(
-      await admin.put('/api/admin/settings', { 'portal.name': '我的云用户中心', 'xui.apiToken': 'super-secret-token' }),
+      await admin.put('/api/admin/settings', { 'portal.name': '我的云用户中心', 'portal.currency': 'USD', 'xui.apiToken': 'super-secret-token' }),
     );
     assert.equal(updated.items.find((item) => item.key === 'portal.name').value, '我的云用户中心');
+    assert.equal(updated.items.find((item) => item.key === 'portal.currency').value, 'USD');
+
+    const publicConfig = expectOk(await admin.get('/api/config'));
+    assert.equal(publicConfig.currency, 'USD');
     const tokenItem = updated.items.find((item) => item.key === 'xui.apiToken');
     assert.equal(tokenItem.value, '', '密钥不得回传明文');
     assert.equal(tokenItem.hasValue, true);
 
     const cleared = expectOk(await admin.put('/api/admin/settings', { 'xui.apiToken': '' }));
     assert.equal(cleared.items.find((item) => item.key === 'xui.apiToken').hasValue, false);
+
+    const rechargeLimits = expectOk(
+      await admin.put('/api/admin/settings', { 'portal.minRechargeCents': '500', 'portal.maxRechargeCents': '200000' }),
+    );
+    assert.equal(rechargeLimits.items.find((item) => item.key === 'portal.minRechargeCents').value, '500');
+    const rechargeConfig = expectOk(await admin.get('/api/config'));
+    assert.equal(rechargeConfig.minRechargeCents, 500);
+    assert.equal(rechargeConfig.maxRechargeCents, 200000);
 
     expectError(await admin.put('/api/admin/settings', { 'unknown.key': 'x' }), 'validation_error');
     expectError(await admin.put('/api/admin/settings', { 'portal.currency': 'x'.repeat(5000) }), 'validation_error', '超长值');

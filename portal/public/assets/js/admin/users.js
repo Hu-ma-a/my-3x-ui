@@ -268,7 +268,7 @@ export async function render(root, ctx) {
       title: `调整余额 · ${user.username}`,
       okText: '确认调整',
       danger: true,
-      bodyHtml: `<p class="text-sm text-muted">当前余额 <span class="a-amount">${esc(money(user.balanceCents))}</span>。正数为增加，负数为扣减，单位元。</p>
+      bodyHtml: `<p class="text-sm text-muted">当前余额 <span class="a-amount">${esc(money(user.balanceCents))}</span>。正数为增加，负数为扣减，单位${esc(ui.currencyName())}。</p>
         <div class="grid grid-2 a-modal-grid">
           <div class="field">
             <label class="field-label" for="a-balance-amount">调整金额（元）</label>

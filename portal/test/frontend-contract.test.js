@@ -107,7 +107,7 @@ describe('前端模块与核心 API 契约一致', () => {
         used.add(match[1]);
       }
     }
-    const whitelist = new Set(['escape', 'portalName', 'money', 'bytes', 'pct', 'date', 'dateTime', 'relative', 'statusText', 'kindText', 'badge', 'qs', 'qsa', 'on', 'toast', 'confirm', 'empty', 'spinner', 'pagination', 'copy', 'tone']);
+    const whitelist = new Set(['escape', 'portalName', 'money', 'amount', 'currencyCode', 'currencySymbol', 'currencyName', 'setCurrency', 'bytes', 'pct', 'date', 'dateTime', 'relative', 'statusText', 'kindText', 'badge', 'qs', 'qsa', 'on', 'toast', 'confirm', 'empty', 'spinner', 'pagination', 'copy', 'tone']);
     for (const method of used) {
       assert.ok(whitelist.has(method), `core/ui.js 缺少方法 ${method}`);
       assert.match(uiSource, new RegExp(`\\b${method}[:(]`), `core/ui.js 未导出 ${method}`);

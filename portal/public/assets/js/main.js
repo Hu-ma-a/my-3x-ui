@@ -315,6 +315,7 @@ async function boot() {
 
   try {
     const config = await api.config();
+    ui.setCurrency(config.currency);
     store.setConfig(config);
   } catch (err) {
     showFatal(err.message);

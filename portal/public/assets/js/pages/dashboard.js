@@ -223,7 +223,7 @@ export async function render(root, ctx) {
       <section class="card p-traffic-card">
         <div class="card-head">
           <h2 class="card-title">流量使用</h2>
-          <span class="badge ${liveAvailable ? 'badge-success' : 'badge-muted'}">${liveAvailable ? '实时数据' : '缓存数据'}</span>
+          <span class="badge ${liveAvailable ? 'badge-success p-status-live' : 'badge-muted'}">${liveAvailable ? '实时数据' : '缓存数据'}</span>
         </div>
         <div class="card-body">${trafficHtml}</div>
       </section>`;

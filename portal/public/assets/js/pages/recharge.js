@@ -38,9 +38,9 @@ export async function render(root, ctx) {
           <section class="card p-recharge-card">
             <div class="card-body">
               <div class="field">
-                <label class="field-label" for="p-recharge-custom">充值金额（元）</label>
+                <label class="field-label" for="p-recharge-custom">充值金额（${ctx.ui.currencyName()}）</label>
                 <div class="input-wrap p-amount-wrap">
-                  <span class="input-prefix" aria-hidden="true">¥</span>
+                  <span class="input-prefix" aria-hidden="true">${ctx.ui.currencySymbol()}</span>
                   <input class="input p-amount-input" id="p-recharge-custom" type="number" inputmode="decimal"
                     min="${minCents / 100}" max="${maxCents / 100}" step="0.01" placeholder="请输入充值金额" />
                 </div>

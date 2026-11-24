@@ -41,7 +41,7 @@ export async function render(root, ctx) {
   wrap.innerHTML = `<header class="page-head row-between">
       <div>
         <h1 class="page-title">套餐管理</h1>
-        <p class="page-desc">创建与维护对外销售的套餐，价格单位元，流量单位 GB</p>
+        <p class="page-desc">创建与维护对外销售的套餐，价格单位${esc(ctx.ui.currencyName())}，流量单位 GB</p>
       </div>
       <button type="button" class="btn btn-primary" data-act="new-plan">新建套餐</button>
     </header>
@@ -213,7 +213,7 @@ export async function render(root, ctx) {
               <p class="error-text hidden" data-error-for="name"></p>
             </div>
             <div class="field">
-              <label class="field-label" for="a-plan-price">价格（元）</label>
+              <label class="field-label" for="a-plan-price">价格（${esc(ctx.ui.currencyName())}）</label>
               <input id="a-plan-price" class="input" name="priceCents" type="number" step="0.01" min="0" placeholder="如：29.90" value="${esc(priceYuan)}">
               <p class="error-text hidden" data-error-for="price"></p>
             </div>

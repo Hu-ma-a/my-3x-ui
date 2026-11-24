@@ -9,7 +9,8 @@
 - 响应信封：
   - 成功：`{"ok": true, "data": <任意>}`
   - 失败：`{"ok": false, "error": {"code": "<稳定错误码>", "message": "<中文可读信息>"}}`
-- 金额一律为整数「分」（`amountCents`），货币 CNY。展示格式由前端 `ui.money()` 负责。
+- 金额接口字段统一为整数「分」（`amountCents` 等，便于计算与支付网关对接）；前端按门户货币设置换算展示：CNY 显示 `¥ 元`、USD 显示 `$ 美元`。管理后台的「充值额度」「套餐价格」「调整余额」输入框都以元/美元为单位，保存时自动换算成分。
+- 货币由设置项 `portal.currency` 控制（`CNY` / `USD`），只影响门户内金额的单位与符号；实际支付渠道支持的币种以对应网关配置为准。
 - 流量一律为字节（`totalBytes` / `remainingBytes` / `usedBytes`），展示由前端 `ui.bytes()` 负责。
 - 时间一律为 Unix 毫秒整数（`expiresAt`、`createdAt`、`paidAt` 等）。3x-ui 的 `expiryTime` 也是毫秒。
 - 鉴权：登录成功后服务端下发 `HttpOnly; SameSite=Lax; Path=/` 的会话 Cookie（`portal_session`）。

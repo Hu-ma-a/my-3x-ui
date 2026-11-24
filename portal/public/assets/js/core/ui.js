@@ -29,9 +29,43 @@ function portalName(raw, fallback = '用户中心') {
   return cleaned || fallback;
 }
 
+const CURRENCIES = {
+  CNY: { symbol: '¥', name: '元' },
+  USD: { symbol: '$', name: '美元' },
+  EUR: { symbol: '€', name: '欧元' },
+  GBP: { symbol: '£', name: '英镑' },
+  JPY: { symbol: 'JP¥', name: '日元' },
+  HKD: { symbol: 'HK$', name: '港元' },
+};
+
+let activeCurrency = 'CNY';
+
+function setCurrency(code) {
+  const next = String(code || '').trim().toUpperCase();
+  activeCurrency = CURRENCIES[next] ? next : 'CNY';
+}
+
+function currencyCode() {
+  return activeCurrency;
+}
+
+function currencySymbol() {
+  return CURRENCIES[activeCurrency].symbol;
+}
+
+function currencyName() {
+  return CURRENCIES[activeCurrency].name;
+}
+
+/** 分 → 金额数值字符串（不带符号，用于输入框/金额展示）。 */
+function amount(cents) {
+  if (cents === null || cents === undefined) return '';
+  return (Number(cents) / 100).toFixed(2);
+}
+
 function money(cents) {
   if (cents === null || cents === undefined) return '—';
-  return `¥${(Number(cents) / 100).toFixed(2)}`;
+  return `${currencySymbol()}${amount(cents)}`;
 }
 
 function bytes(value) {
@@ -96,8 +130,11 @@ function tone(status) {
   return STATUS_MAP[status]?.tone || 'muted';
 }
 
+const WAITING_STATUSES = new Set(['pending', 'paid', 'provisioning', 'sync_pending']);
+
 function badge(status) {
-  return `<span class="badge badge-${tone(status)}">${escapeHtml(statusText(status))}</span>`;
+  const wait = WAITING_STATUSES.has(status) ? ' p-status-wait' : '';
+  return `<span class="badge badge-${tone(status)}${wait}">${escapeHtml(statusText(status))}</span>`;
 }
 
 function qs(root, selector) {
@@ -233,6 +270,11 @@ async function copy(text) {
 export const ui = {
   escape: escapeHtml,
   portalName,
+  setCurrency,
+  currencyCode,
+  currencySymbol,
+  currencyName,
+  amount,
   money,
   bytes,
   pct,

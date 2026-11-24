@@ -47,6 +47,14 @@ function writeJsonAtomic(file, value) {
   renameSync(tmp, file);
 }
 
+function writeHeartbeat(action = 'idle') {
+  try {
+    writeJsonAtomic(path.join(UPDATE_DIR, 'heartbeat.json'), { at: Date.now(), action });
+  } catch {
+    // 心跳失败不应影响更新主流程。
+  }
+}
+
 function writeResult(result) {
   const payload = { ...result, at: Date.now() };
   writeJsonAtomic(RESULT_FILE, payload);
@@ -180,6 +188,7 @@ async function runApply(repo, mirror) {
     process.env.PORTAL_REPO = repo;
     process.env.PORTAL_GH_MIRROR = mirror;
     log('调用 install.sh --upgrade 部署新版本…');
+    writeHeartbeat('applying');
     execFileSync('bash', [installScript, '--upgrade', '--no-auto'], { stdio: 'inherit', env: process.env });
     if (previousEnv === undefined) delete process.env.PORTAL_ENV_FILE;
     else process.env.PORTAL_ENV_FILE = previousEnv;
@@ -191,6 +200,7 @@ async function runApply(repo, mirror) {
 
 async function main() {
   const request = readJson(REQUEST_FILE);
+  writeHeartbeat(request ? String(request.action || '') : 'idle');
   if (!request) {
     log('没有待处理的更新请求，退出');
     return;

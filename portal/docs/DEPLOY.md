@@ -669,3 +669,13 @@ sudo bash /opt/portal/scripts/install.sh --check-update --repo OWNER/REPO
 ```
 
 > 后台一键更新仅支持 systemd 部署：门户进程以 `portal` 用户运行且代码目录只读，更新由 root 的 timer 执行，不需要给 Web 进程 root 权限。Docker 部署请 `docker pull` 新镜像后重启容器；数据库和 `/etc/portal/portal.env` 在升级时始终保留。
+
+排查「检查更新没有反应」：
+
+```bash
+systemctl status portal-update.timer          # 更新服务是否启用
+journalctl -u portal-update.service -n 80     # 最近一次执行结果
+grep -E '^PORTAL_UPDATE_(REPO|MIRROR)=' /etc/portal/portal.env
+```
+
+「系统设置 → 版本更新」卡片会显示「更新服务」的心跳状态；未运行/未心跳时按上面命令启用 timer，或重新执行 `install.sh --upgrade` 安装更新服务。未配置 `PORTAL_UPDATE_REPO` 时检查更新会被拒绝并给出提示。

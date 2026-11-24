@@ -55,6 +55,7 @@ export class UpdateService {
     this.updateDir = path.join(config.dataDir, 'update');
     this.requestPath = path.join(this.updateDir, 'request.json');
     this.resultPath = path.join(this.updateDir, 'result.json');
+    this.heartbeatPath = path.join(this.updateDir, 'heartbeat.json');
   }
 
   currentVersion() {
@@ -85,9 +86,15 @@ export class UpdateService {
     const currentVersion = this.currentVersion();
     const result = this.readResult();
     const request = this.readRequest();
+    const heartbeat = readJson(this.heartbeatPath);
+    const heartbeatAt = heartbeat?.at ? Number(heartbeat.at) : null;
     const latestVersion = result?.latestTag ? tagVersion(result.latestTag) : result?.latestVersion || '';
     const hasLatest = Boolean(latestVersion && parseVersion(latestVersion));
     const upToDate = hasLatest ? compareVersions(currentVersion, latestVersion) >= 0 : null;
+    // 检查任务 2 分钟、更新任务 10 分钟仍无结果时视为超时，允许用户重新发起。
+    const requestAge = request ? Date.now() - Number(request.requestedAt || 0) : 0;
+    const requestTimeoutMs = request?.action === 'apply' ? 10 * 60 * 1000 : 2 * 60 * 1000;
+    const pending = Boolean(request) && requestAge < requestTimeoutMs;
     return {
       currentVersion,
       latestVersion: latestVersion || '',
@@ -99,8 +106,14 @@ export class UpdateService {
       canApply: this.canApply,
       repo: this.repo,
       mirrorConfigured: Boolean(this.mirror),
-      pending: Boolean(request),
+      pending,
+      requestStale: Boolean(request) && !pending,
       request: request ? { action: request.action, requestedAt: request.requestedAt } : null,
+      runner: {
+        lastHeartbeatAt: heartbeatAt,
+        healthy: Boolean(heartbeatAt && Date.now() - heartbeatAt < 5 * 60 * 1000),
+        lastAction: heartbeat?.action || '',
+      },
       result: result
         ? {
             status: result.status || '',
