@@ -63,4 +63,21 @@ describe('一键安装与发布产物', () => {
     const deploy = read('docs/DEPLOY.md');
     assert.ok(deploy.includes('## 12. 一键安装与升级'), 'DEPLOY 缺少一键安装章节');
   });
+
+  it('后台一键更新：执行器、版本号与校验文件齐备', () => {
+    const runner = fs.readFileSync(path.join(PORTAL, 'scripts/update-runner.mjs'), 'utf8');
+    assert.ok(runner.startsWith('#!/usr/bin/env node'), 'update-runner.mjs 需要 node shebang');
+    assert.ok(runner.includes("action === 'check'") && runner.includes("action === 'apply'"), '更新执行器需支持检查与更新');
+    assert.ok(runner.includes("'--upgrade'"), '更新执行器应调用 install.sh --upgrade');
+    assert.ok(runner.includes('sha256'), '更新执行器应支持 sha256 校验');
+
+    const script = read('scripts/install.sh');
+    assert.ok(script.includes('--check-update'), 'install.sh 应提供 --check-update 检查命令');
+    assert.ok(script.includes('portal-update.timer'), 'install.sh 应安装后台更新 timer');
+    assert.ok(script.includes('PORTAL_UPDATE_REPO'), 'install.sh 应写入更新源仓库');
+
+    const workflow = fs.readFileSync(path.join(REPO, '.github/workflows/portal-release.yml'), 'utf8');
+    assert.ok(workflow.includes('portal/VERSION'), '发布包需要写入版本号文件');
+    assert.ok(workflow.includes('portal.tar.gz.sha256'), '发布包需要附带 sha256 校验文件');
+  });
 });

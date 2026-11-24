@@ -4,7 +4,7 @@ const USERNAME_PATTERN = /^[a-zA-Z0-9_.-]+$/;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
 export async function render(root, ctx) {
-  const portalName = (ctx.config && ctx.config.portalName) || '用户中心';
+  const portalName = ctx.ui.portalName(ctx.config && ctx.config.portalName);
 
   if (ctx.config && ctx.config.registrationEnabled === false) {
     root.innerHTML = `
@@ -68,7 +68,7 @@ export async function render(root, ctx) {
               <div class="error-text" data-error="confirmPassword"></div>
             </div>
             <div class="error-text" id="p-register-error" role="alert"></div>
-            <button class="btn btn-primary btn-lg btn-block" id="p-register-submit" type="submit">注册</button>
+            <button class="btn btn-accent btn-lg btn-block" id="p-register-submit" type="submit">注册</button>
           </form>
           <div class="auth-foot p-auth-links">
             <a class="link-btn p-tap" href="#/login">已有账号？直接登录</a>

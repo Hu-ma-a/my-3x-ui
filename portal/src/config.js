@@ -83,6 +83,12 @@ export function loadConfig(overrides = {}) {
     publicUrl: stripTrailingSlash(envStr('PORTAL_PUBLIC_URL')),
     trustProxy: envBool('PORTAL_TRUST_PROXY', false),
     logLevel: envStr('PORTAL_LOG_LEVEL', 'info'),
+    deployMode: overrides.deployMode || envStr('PORTAL_DEPLOY_MODE', 'local'),
+    update: {
+      repo: envStr('PORTAL_UPDATE_REPO'),
+      mirror: stripTrailingSlash(envStr('PORTAL_UPDATE_MIRROR')),
+      ...(overrides.update || {}),
+    },
     sessionTtlMs: 7 * 24 * 60 * 60 * 1000,
     seed: {
       adminUsername: envStr('PORTAL_ADMIN_USERNAME', 'admin'),

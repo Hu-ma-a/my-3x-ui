@@ -27,6 +27,17 @@ jobs:
       - name: 检出代码
         uses: actions/checkout@v4
 
+      - name: 写入版本号
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            version="${{ github.event.inputs.version }}"
+          else
+            version="${GITHUB_REF_NAME#portal-v}"
+          fi
+          printf '%s\n' "$version" > portal/VERSION
+          echo "版本：$version"
+
       - name: 打包（只含运行所需文件）
         run: |
           set -euo pipefail
@@ -37,12 +48,15 @@ jobs:
             --exclude='portal/node_modules' \
             --exclude='portal/.env' \
             portal
-          ls -lh dist/portal.tar.gz
+          sha256sum dist/portal.tar.gz > dist/portal.tar.gz.sha256
+          ls -lh dist/
 
       - name: 发布 Release
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/portal.tar.gz
+          files: |
+            dist/portal.tar.gz
+            dist/portal.tar.gz.sha256
           tag_name: ${{ github.event_name == 'workflow_dispatch' && format('portal-v{0}', github.event.inputs.version) || github.ref_name }}
           name: 3x-ui 用户门户 ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.version || github.ref_name }}
           generate_release_notes: true
@@ -53,6 +67,16 @@ jobs:
     steps:
       - name: 检出代码
         uses: actions/checkout@v4
+
+      - name: 写入版本号
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            version="${{ github.event.inputs.version }}"
+          else
+            version="${GITHUB_REF_NAME#portal-v}"
+          fi
+          printf '%s\n' "$version" > portal/VERSION
 
       - name: 计算镜像名（GHCR 要求小写）
         id: image

@@ -10,12 +10,14 @@ describe('管理后台', () => {
   let admin;
   let user;
   let userId;
+  let adminId;
 
   before(async () => {
     xui = new XuiMock();
     app = await startTestApp({ xuiMock: xui });
     admin = createClient(app.baseUrl);
     await admin.adminLogin();
+    adminId = expectOk(await admin.get('/api/me'), '管理员会话').user.id;
     user = createClient(app.baseUrl);
     const registered = await user.register('admin-target', 'password123');
     userId = registered.user.id;
@@ -189,5 +191,101 @@ describe('管理后台', () => {
     const search = expectOk(await admin.get('/api/admin/orders?query=manual-user'));
     assert.ok(search.items.length >= 1);
     assert.ok(search.items.every((order) => order.username === 'manual-user'));
+  });
+
+  it('新增管理员：可登录后台，重复用户名与弱密码被拒绝', async () => {
+    const created = expectOk(await admin.post('/api/admin/admins', { username: 'ops-admin', password: 'ops-password1' }));
+    assert.equal(created.role, 'admin');
+    assert.equal(created.status, 'active');
+    assert.equal(created.isSelf, false);
+
+    const ops = createClient(app.baseUrl);
+    const logged = await ops.login('ops-admin', 'ops-password1');
+    assert.equal(logged.user.role, 'admin');
+    expectOk(await ops.get('/api/admin/overview'), '新管理员访问后台');
+
+    expectError(
+      await admin.post('/api/admin/admins', { username: 'ops-admin', password: 'ops-password1' }),
+      'username_taken',
+    );
+    expectError(await admin.post('/api/admin/admins', { username: 'weak-admin', password: 'short' }), 'validation_error', '弱密码');
+
+    const list = expectOk(await admin.get('/api/admin/admins'));
+    assert.ok(list.items.some((item) => item.username === 'ops-admin'));
+    assert.ok(list.items.some((item) => item.id === adminId && item.isSelf === true));
+  });
+
+  it('管理员禁用/启用：立即踢下线，不能操作当前登录账号', async () => {
+    const list = expectOk(await admin.get('/api/admin/admins'));
+    const ops = list.items.find((item) => item.username === 'ops-admin');
+    assert.ok(ops);
+    const opsClient = createClient(app.baseUrl);
+    await opsClient.login('ops-admin', 'ops-password1');
+    expectOk(await opsClient.get('/api/admin/overview'));
+
+    expectError(await admin.post(`/api/admin/admins/${adminId}/status`, { status: 'disabled' }), 'validation_error', '不能禁用自己');
+
+    expectOk(await admin.post(`/api/admin/admins/${ops.id}/status`, { status: 'disabled' }));
+    expectError(await opsClient.get('/api/admin/overview'), 'unauthorized', '禁用后旧会话失效');
+    expectError(await opsClient.post('/api/auth/login', { username: 'ops-admin', password: 'ops-password1' }), 'account_disabled');
+
+    expectOk(await admin.post(`/api/admin/admins/${ops.id}/status`, { status: 'active' }));
+    const relogged = await opsClient.login('ops-admin', 'ops-password1');
+    assert.equal(relogged.user.role, 'admin');
+  });
+
+  it('删除管理员：不能删除自己，删除后无法登录', async () => {
+    expectError(await admin.delete(`/api/admin/admins/${adminId}`), 'validation_error', '不能删除自己');
+
+    const list = expectOk(await admin.get('/api/admin/admins'));
+    const ops = list.items.find((item) => item.username === 'ops-admin');
+    expectOk(await admin.delete(`/api/admin/admins/${ops.id}`));
+    expectError(await admin.delete(`/api/admin/admins/${ops.id}`), 'admin_not_found', '重复删除');
+
+    const gone = createClient(app.baseUrl);
+    expectError(await gone.post('/api/auth/login', { username: 'ops-admin', password: 'ops-password1' }), 'invalid_credentials');
+  });
+
+  it('封禁用户：立即踢下线、无法登录且可解封', async () => {
+    const banClient = createClient(app.baseUrl);
+    const registered = await banClient.register('ban-target', 'password123');
+    expectOk(await banClient.get('/api/me'));
+
+    expectOk(await admin.post(`/api/admin/users/${registered.user.id}/status`, { status: 'banned' }));
+    expectError(await banClient.get('/api/me'), 'unauthorized', '封禁后旧会话失效');
+    expectError(
+      await banClient.post('/api/auth/login', { username: 'ban-target', password: 'password123' }),
+      'account_banned',
+    );
+
+    const banned = expectOk(await admin.get('/api/admin/users?status=banned'));
+    assert.ok(banned.items.some((item) => item.username === 'ban-target'));
+
+    expectError(
+      await admin.post('/api/admin/users/999999/status', { status: 'banned' }),
+      'user_not_found',
+      '用户不存在',
+    );
+
+    expectOk(await admin.post(`/api/admin/users/${registered.user.id}/status`, { status: 'active' }));
+    const relogged = await banClient.login('ban-target', 'password123');
+    assert.equal(relogged.user.id, registered.user.id);
+  });
+
+  it('管理员账号不能通过用户接口封禁', async () => {
+    expectError(await admin.post(`/api/admin/users/${adminId}/status`, { status: 'banned' }), 'validation_error');
+  });
+
+  it('版本更新接口：普通用户不可用，本地部署不提供一键更新', async () => {
+    expectError(await user.get('/api/admin/update'), 'forbidden', '普通用户读取更新状态');
+
+    const status = expectOk(await admin.get('/api/admin/update'));
+    assert.equal(status.currentVersion, '1.0.0');
+    assert.equal(status.canApply, false, '测试环境非 systemd 部署');
+    assert.equal(status.pending, false);
+    assert.equal(typeof status.deployMode, 'string');
+
+    expectError(await admin.post('/api/admin/update/check', {}), 'update_unavailable');
+    expectError(await admin.post('/api/admin/update/apply', {}), 'update_unavailable');
   });
 });

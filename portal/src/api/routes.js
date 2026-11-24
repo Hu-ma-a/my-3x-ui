@@ -32,6 +32,11 @@ export function createRoutes(services) {
     { method: 'POST', path: '/api/admin/users/:id/status', auth: 'admin', handler: wrap(adminHandlers.setUserStatus) },
     { method: 'POST', path: '/api/admin/users/:id/balance', auth: 'admin', handler: wrap(adminHandlers.adjustBalance) },
     { method: 'POST', path: '/api/admin/users/:id/reset-password', auth: 'admin', handler: wrap(adminHandlers.resetUserPassword) },
+    { method: 'GET', path: '/api/admin/admins', auth: 'admin', handler: wrap(adminHandlers.listAdmins) },
+    { method: 'POST', path: '/api/admin/admins', auth: 'admin', handler: wrap(adminHandlers.createAdmin) },
+    { method: 'POST', path: '/api/admin/admins/:id/status', auth: 'admin', handler: wrap(adminHandlers.setAdminStatus) },
+    { method: 'POST', path: '/api/admin/admins/:id/password', auth: 'admin', handler: wrap(adminHandlers.resetAdminPassword) },
+    { method: 'DELETE', path: '/api/admin/admins/:id', auth: 'admin', handler: wrap(adminHandlers.deleteAdmin) },
     { method: 'GET', path: '/api/admin/plans', auth: 'admin', handler: wrap(adminHandlers.listPlans) },
     { method: 'POST', path: '/api/admin/plans', auth: 'admin', handler: wrap(adminHandlers.createPlan) },
     { method: 'PUT', path: '/api/admin/plans/:id', auth: 'admin', handler: wrap(adminHandlers.updatePlan) },
@@ -45,5 +50,8 @@ export function createRoutes(services) {
     { method: 'GET', path: '/api/admin/settings', auth: 'admin', handler: wrap(adminHandlers.settings) },
     { method: 'PUT', path: '/api/admin/settings', auth: 'admin', handler: wrap(adminHandlers.updateSettings) },
     { method: 'POST', path: '/api/admin/settings/test-xui', auth: 'admin', handler: wrap(adminHandlers.testXui) },
+    { method: 'GET', path: '/api/admin/update', auth: 'admin', handler: wrap(adminHandlers.updateStatus) },
+    { method: 'POST', path: '/api/admin/update/check', auth: 'admin', handler: wrap(adminHandlers.checkUpdate) },
+    { method: 'POST', path: '/api/admin/update/apply', auth: 'admin', handler: wrap(adminHandlers.applyUpdate) },
   ];
 }

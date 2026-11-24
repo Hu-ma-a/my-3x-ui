@@ -180,6 +180,12 @@ function seedStore(store, config, logger) {
       store.run('INSERT INTO settings(key, value, updated_at) VALUES (?, ?, ?) ON CONFLICT(key) DO NOTHING', item.key, item.default, now);
     }
 
+    // 历史默认品牌名迁移：仅当仍是旧默认值时去掉上游品牌字样。
+    store.run(
+      "UPDATE settings SET value = '用户中心', updated_at = ? WHERE key = 'portal.name' AND value = '3x-ui 用户中心'",
+      now,
+    );
+
     const admin = store.get("SELECT id FROM users WHERE role = 'admin' LIMIT 1");
     if (!admin) {
       const password = config.seed.adminPassword || newPassword(14);

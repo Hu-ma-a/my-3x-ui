@@ -9,8 +9,11 @@ const ICON_LINK =
 const ICON_CARD =
   '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="5" width="19" height="14" rx="2.5"/><path d="M2.5 9.5h19"/><path d="M6 14.5h4"/></svg>';
 
+const ICON_REFRESH =
+  '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.3-5.6"/><path d="M20 3.5V9h-5.5"/></svg>';
+
 const DEFAULTS = {
-  'portal.name': '3x-ui 用户中心',
+  'portal.name': '用户中心',
   'portal.registrationEnabled': 'true',
   'portal.currency': 'CNY',
   'portal.manualPayInstructions': '请转账后联系管理员确认',
@@ -29,15 +32,15 @@ const DEFAULTS = {
 const KEYS = {
   'portal.name': { label: '门户名称', kind: 'text', required: true, span2: true },
   'portal.currency': { label: '货币', kind: 'text', required: true, hint: '当前仅支持 CNY' },
-  'portal.registrationEnabled': { label: '开放注册', kind: 'bool', hint: '关闭后新用户无法自助注册，可由管理员在 3x-ui 侧维护' },
+  'portal.registrationEnabled': { label: '开放注册', kind: 'bool', hint: '关闭后新用户无法自助注册，可由管理员在面板侧维护' },
   'portal.manualPayInstructions': { label: '人工转账说明', kind: 'textarea' },
   'portal.minRechargeCents': { label: '最低充值金额（分）', kind: 'int', min: 0 },
   'portal.maxRechargeCents': { label: '最高充值金额（分）', kind: 'int', min: 0 },
-  'portal.defaultInboundIds': { label: '默认入站 ID（逗号分隔）', kind: 'text', hint: '套餐未绑定入站时使用；留空则取 3x-ui 第一个入站' },
-  'portal.subscriptionBaseUrl': { label: '订阅基地址', kind: 'text', hint: '留空时自动从 3x-ui 设置推导' },
+  'portal.defaultInboundIds': { label: '默认入站 ID（逗号分隔）', kind: 'text', hint: '套餐未绑定入站时使用；留空则取面板第一个入站' },
+  'portal.subscriptionBaseUrl': { label: '订阅基地址', kind: 'text', hint: '留空时自动从面板设置推导' },
   'xui.url': { label: '面板地址', kind: 'text', required: true, hint: '例如 http://127.0.0.1:2053' },
   'xui.basePath': { label: 'basePath', kind: 'text', hint: '通常为 /' },
-  'xui.apiToken': { label: 'API Token', kind: 'secret', hint: '建议使用 3x-ui admin 权限的 API Token，优先于账号密码' },
+  'xui.apiToken': { label: 'API Token', kind: 'secret', hint: '建议使用面板 admin 权限的 API Token，优先于账号密码' },
   'xui.username': { label: '面板用户名', kind: 'text', hint: '未配置 API Token 时回退账号密码登录' },
   'xui.password': { label: '面板密码', kind: 'secret' },
   'xui.timeoutMs': { label: '请求超时（毫秒）', kind: 'int', min: 1000 },
@@ -59,7 +62,7 @@ const GROUPS = [
       'portal.minRechargeCents', 'portal.maxRechargeCents', 'portal.defaultInboundIds', 'portal.subscriptionBaseUrl'],
   },
   {
-    title: '3x-ui 连接',
+    title: '面板连接',
     desc: '门户通过面板 API 开通套餐并同步订阅数据',
     keys: ['xui.url', 'xui.basePath', 'xui.apiToken', 'xui.username', 'xui.password', 'xui.timeoutMs'],
   },
@@ -71,7 +74,7 @@ const GROUPS = [
   },
 ];
 
-const GROUP_ICONS = { '门户设置': ICON_GLOBE, '3x-ui 连接': ICON_LINK, '支付设置': ICON_CARD };
+const GROUP_ICONS = { '门户设置': ICON_GLOBE, '面板连接': ICON_LINK, '支付设置': ICON_CARD };
 
 const INT_KEYS = ['portal.minRechargeCents', 'portal.maxRechargeCents', 'xui.timeoutMs'];
 
@@ -99,11 +102,24 @@ export async function render(root, ctx) {
   wrap.innerHTML = `<header class="page-head row-between">
       <div>
         <h1 class="page-title">系统设置</h1>
-        <p class="page-desc">门户、3x-ui 连接与支付渠道配置；密钥类字段留空表示不修改</p>
+        <p class="page-desc">门户、面板连接与支付渠道配置；密钥类字段留空表示不修改</p>
       </div>
       <button type="button" class="btn btn-secondary" data-act="reload">重新加载</button>
     </header>
-    <div id="a-settings"><div class="loading-block">${ui.spinner()}<span>正在加载设置…</span></div></div>`;
+    <div id="a-settings"><div class="loading-block">${ui.spinner()}<span>正在加载设置…</span></div></div>
+    <section class="card" id="a-update-card">
+      <div class="card-head">
+        <div>
+          <h2 class="card-title"><span class="a-title-icon">${ICON_REFRESH}</span>版本更新</h2>
+          <p class="card-desc">检查最新版本并一键更新；更新由系统服务执行，完成后门户会自动重启。</p>
+        </div>
+        <div class="row">
+          <button type="button" class="btn btn-secondary btn-sm" data-act="update-check">检查更新</button>
+          <button type="button" class="btn btn-primary btn-sm hidden" data-act="update-apply">立即更新</button>
+        </div>
+      </div>
+      <div class="card-body"><div id="a-update-box"><div class="loading-block">${ui.spinner()}<span>正在读取版本信息…</span></div></div></div>
+    </section>`;
   root.replaceChildren(wrap);
 
   const box = wrap.querySelector('#a-settings');
@@ -193,7 +209,7 @@ export async function render(root, ctx) {
 
   function groupSection(group) {
     const fields = group.keys.map((key) => (KEYS[key].kind === 'providers' ? providersHtml() : fieldHtml(key))).join('');
-    const isXui = group.title === '3x-ui 连接';
+    const isXui = group.title === '面板连接';
     return `<section class="card">
       <div class="card-head">
         <div>
@@ -270,7 +286,7 @@ export async function render(root, ctx) {
     };
     if (!payload['portal.name']) fail('portal.name', '请输入门户名称');
     if (!payload['portal.currency']) fail('portal.currency', '请输入货币代码，如 CNY');
-    if (!payload['xui.url']) fail('xui.url', '请输入 3x-ui 面板地址');
+    if (!payload['xui.url']) fail('xui.url', '请输入面板地址');
 
     INT_KEYS.forEach((key) => {
       const raw = payload[key];
@@ -315,6 +331,153 @@ export async function render(root, ctx) {
           <div><button type="button" class="btn btn-secondary btn-sm" data-act="reload">重试</button></div>
         </div>
       </div>`;
+    }
+  }
+
+  let updateTimer = null;
+  let updateApplyRequested = false;
+
+  function stopUpdatePoll() {
+    if (updateTimer) {
+      clearInterval(updateTimer);
+      updateTimer = null;
+    }
+  }
+
+  function startUpdatePoll() {
+    if (updateTimer) return;
+    updateTimer = setInterval(() => loadUpdate(), 2500);
+  }
+
+  ctx.onCleanup(stopUpdatePoll);
+
+  function updateHints(status) {
+    if (status.canApply) return '';
+    if (status.deployMode === 'docker') {
+      return 'Docker 部署请在宿主机执行 docker pull 拉取新镜像，然后重启容器。';
+    }
+    if (status.deployMode !== 'systemd') {
+      return '源码/本地部署请使用 scripts/install.sh --upgrade 升级。';
+    }
+    return '当前未配置更新仓库：请在 /etc/portal/portal.env 设置 PORTAL_UPDATE_REPO=你的用户名/仓库名（可选 PORTAL_UPDATE_MIRROR=镜像前缀）后重启门户。';
+  }
+
+  function renderUpdate(status) {
+    const updateBox = wrap.querySelector('#a-update-box');
+    if (!updateBox) return;
+    if (!status) {
+      updateBox.innerHTML = '<div class="alert alert-danger">读取版本信息失败</div>';
+      return;
+    }
+    const rows = [
+      `<div class="row-item">
+        <div class="row-main">
+          <div class="row-title">当前版本</div>
+          <div class="row-sub">${esc(status.deployMode)} 部署${status.mirrorConfigured ? ' · 已配置下载镜像' : ''}</div>
+        </div>
+        <div class="row-side mono">v${esc(status.currentVersion)}</div>
+      </div>`,
+    ];
+    if (status.pending) {
+      rows.push(`<div class="row-item">
+        <div class="row-main">
+          <div class="row-title">${status.request?.action === 'apply' ? '正在更新…' : '正在检查更新…'}</div>
+          <div class="row-sub">更新任务已交给系统服务执行，通常 1 分钟内完成，请保持页面打开</div>
+        </div>
+        <div class="row-side"><span class="spinner"></span></div>
+      </div>`);
+    } else if (status.latestVersion) {
+      rows.push(`<div class="row-item">
+        <div class="row-main">
+          <div class="row-title">最新版本</div>
+          <div class="row-sub">${status.checkedAt ? `检查于 ${esc(ui.dateTime(status.checkedAt))}` : ''}${status.releaseUrl ? ` · <a href="${esc(status.releaseUrl)}" target="_blank" rel="noreferrer">发布说明</a>` : ''}</div>
+        </div>
+        <div class="row-side">${status.upToDate
+          ? '<span class="badge badge-success">已是最新</span>'
+          : `<span class="badge badge-warning">可更新 v${esc(status.latestVersion)}</span>`}</div>
+      </div>`);
+    } else {
+      rows.push(`<div class="row-item">
+        <div class="row-main">
+          <div class="row-title">尚未检查更新</div>
+          <div class="row-sub">点击右上角「检查更新」获取最新版本</div>
+        </div>
+      </div>`);
+    }
+    if (status.result?.status === 'failed') {
+      rows.push(`<div class="alert alert-danger mt-2">更新失败：${esc(status.result.message || '未知错误')}</div>`);
+    }
+    if (status.result?.status === 'applied') {
+      rows.push('<div class="alert alert-success mt-2">更新已应用，门户正在重启，页面稍后会自动刷新。</div>');
+    }
+    const hint = updateHints(status);
+    updateBox.innerHTML = `<div class="rows">${rows.join('')}</div>${hint ? `<p class="hint mt-2">${esc(hint)}</p>` : ''}`;
+
+    const checkBtn = wrap.querySelector('[data-act="update-check"]');
+    const applyBtn = wrap.querySelector('[data-act="update-apply"]');
+    if (checkBtn) checkBtn.disabled = !status.canApply || status.pending;
+    if (applyBtn) {
+      applyBtn.classList.toggle('hidden', !(status.canApply && !status.upToDate && status.latestVersion && !status.pending));
+      applyBtn.disabled = status.pending;
+    }
+  }
+
+  async function loadUpdate() {
+    try {
+      const status = (await ctx.api.admin.updateStatus()) || {};
+      renderUpdate(status);
+      if (status.pending) startUpdatePoll();
+      else {
+        stopUpdatePoll();
+        if (updateApplyRequested && status.result?.status === 'applied') {
+          updateApplyRequested = false;
+          ctx.toast('更新完成，页面即将刷新…', 'success');
+          setTimeout(() => window.location.reload(), 2500);
+        }
+      }
+    } catch (err) {
+      if (handleAuthError(ctx, err)) return;
+      const updateBox = wrap.querySelector('#a-update-box');
+      if (updateBox) {
+        updateBox.innerHTML = `<div class="alert alert-danger">读取版本信息失败：${esc(err && err.message ? err.message : '未知错误')}</div>`;
+      }
+    }
+  }
+
+  async function checkUpdate(btn) {
+    btn.disabled = true;
+    try {
+      await ctx.api.admin.checkUpdate();
+      ctx.toast('已发起检查，正在等待结果…', 'success');
+      await loadUpdate();
+      startUpdatePoll();
+    } catch (err) {
+      if (handleAuthError(ctx, err)) return;
+      ctx.toast(err && err.message ? err.message : '检查更新失败', 'error');
+      btn.disabled = false;
+    }
+  }
+
+  async function applyUpdate(btn) {
+    const ok = await ctx.ui.confirm({
+      title: '立即更新门户',
+      content: '将下载并安装最新版本，随后门户会自动重启（约数十秒）。升级前会自动备份数据库，期间用户可能短暂无法访问。',
+      okText: '开始更新',
+      danger: true,
+    });
+    if (!ok) return;
+    btn.disabled = true;
+    updateApplyRequested = true;
+    try {
+      await ctx.api.admin.applyUpdate();
+      ctx.toast('已开始更新，请保持页面打开…', 'success');
+      await loadUpdate();
+      startUpdatePoll();
+    } catch (err) {
+      updateApplyRequested = false;
+      if (handleAuthError(ctx, err)) return;
+      ctx.toast(err && err.message ? err.message : '更新失败', 'error');
+      btn.disabled = false;
     }
   }
 
@@ -378,7 +541,7 @@ export async function render(root, ctx) {
         rows.push(`<div class="row-item"><div class="row-main"><div class="row-sub">仅展示前 10 个入站，共 ${inbounds.length} 个</div></div></div>`);
       }
       if (!inbounds.length) {
-        rows.push(`<div class="row-item"><div class="row-main"><div class="row-sub">未发现入站，请先在 3x-ui 中创建入站。</div></div></div>`);
+        rows.push(`<div class="row-item"><div class="row-main"><div class="row-sub">未发现入站，请先在面板中创建入站。</div></div></div>`);
       }
       resultBox.innerHTML = `<div class="rows">${rows.join('')}</div>`;
     } catch (err) {
@@ -399,6 +562,8 @@ export async function render(root, ctx) {
     const act = btn.getAttribute('data-act');
     if (act === 'reload') load();
     else if (act === 'test-xui') testXui(btn);
+    else if (act === 'update-check') checkUpdate(btn);
+    else if (act === 'update-apply') applyUpdate(btn);
   });
 
   wrap.addEventListener('submit', (e) => {
@@ -423,4 +588,5 @@ export async function render(root, ctx) {
   });
 
   load();
+  loadUpdate();
 }

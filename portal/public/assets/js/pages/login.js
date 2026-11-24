@@ -7,7 +7,7 @@ function safeNext(value) {
 }
 
 export async function render(root, ctx) {
-  const portalName = (ctx.config && ctx.config.portalName) || '用户中心';
+  const portalName = ctx.ui.portalName(ctx.config && ctx.config.portalName);
   const next = safeNext(ctx.query && ctx.query.next);
 
   root.innerHTML = `
@@ -36,7 +36,7 @@ export async function render(root, ctx) {
               <div class="error-text" data-error="password"></div>
             </div>
             <div class="error-text" id="p-login-error" role="alert"></div>
-            <button class="btn btn-primary btn-lg btn-block" id="p-login-submit" type="submit">登录</button>
+            <button class="btn btn-accent btn-lg btn-block" id="p-login-submit" type="submit">登录</button>
           </form>
           <div class="auth-foot p-auth-links">
             <a class="link-btn p-tap" href="#/register">还没有账号？立即注册</a>

@@ -1,6 +1,6 @@
-# 3x-ui 独立用户门户（portal）
+# 独立用户门户（portal）
 
-面向终端用户的独立自助门户：注册 / 登录、购买套餐、在线充值、查看流量与到期时间、复制订阅链接；管理员在门户后台管理用户、套餐、订单与支付配置。
+面向终端用户的独立自助门户：注册 / 登录、购买套餐、在线充值、查看流量与到期时间、复制订阅链接；管理员在门户后台管理用户（含封禁 / 解封）、管理员账号、套餐、订单与支付配置。
 
 门户通过 **3x-ui 面板的 REST API** 管理节点与客户端，**不修改 3x-ui 核心（Go 面板）代码**：你可以把它装在任意已有的 3x-ui 部署旁边，3x-ui 本身照常升级、照常使用官方面板。
 
@@ -49,7 +49,8 @@
 | 路由 | 页面 | 能力 |
 |---|---|---|
 | `#/admin` | 管理概览 | 用户 / 订单 / 收入 / 充值统计，3x-ui 连接状态 |
-| `#/admin/users` | 用户管理 | 搜索、禁用/启用、调整余额、重置密码 |
+| `#/admin/users` | 用户管理 | 搜索、封禁/解封、调整余额、重置密码 |
+| `#/admin/admins` | 管理员 | 新增管理员、启用/禁用、重置密码、删除（保护当前账号与最后一个可用管理员） |
 | `#/admin/plans` | 套餐管理 | 新建 / 编辑 / 删除（被订单引用时仅停用）、绑定入站 |
 | `#/admin/orders` | 订单管理 | 标记已支付、重试开通、取消、查看 `provisionError` |
 | `#/admin/recharges` | 充值记录 | 充值订单与总额小计 |
@@ -302,6 +303,9 @@ https://sub.example.com/sub/
 | `PORTAL_PUBLIC_URL` | 按请求推断 | 门户对外地址，如 `https://portal.example.com`，用于支付回调 URL |
 | `PORTAL_TRUST_PROXY` | `false` | 反向代理后设 `true`（信任 `X-Forwarded-For` / `X-Forwarded-Proto`） |
 | `PORTAL_LOG_LEVEL` | `info` | `info` / `debug` |
+| `PORTAL_DEPLOY_MODE` | `local` | `systemd` / `docker` / `local`；决定后台是否提供一键更新 |
+| `PORTAL_UPDATE_REPO` | 无 | 更新源仓库 `owner/repo`（systemd 安装/升级时自动写入） |
+| `PORTAL_UPDATE_MIRROR` | 无 | 下载更新包用的 GitHub 镜像前缀，如 `https://ghproxy.net/` |
 | `XUI_URL` | `http://127.0.0.1:2053` | 3x-ui 面板地址 |
 | `XUI_BASE_PATH` | `/` | 面板 webBasePath |
 | `XUI_API_TOKEN` | 无 | admin scope API Token（推荐） |
@@ -422,6 +426,29 @@ docker run -d --name portal --restart unless-stopped \
 ```
 
 > **注意**：`--env-file` 会覆盖镜像默认值；若 `.env` 里是 systemd 用的 `PORTAL_HOST=127.0.0.1` / `PORTAL_DB_PATH=./data/portal.db`，必须像上面那样用 `-e` 显式覆盖，否则容器监听错地址、数据库写到非持久化路径。
+
+## 版本更新（后台一键更新）
+
+systemd 安装/升级时，脚本会额外安装 `portal-update.timer`（每 30 秒检查更新请求）和以 root 运行的更新执行器 `/usr/local/lib/portal/update-runner.mjs`。管理员可在 **管理 → 系统设置 → 版本更新**：
+
+- **检查更新**：读取 GitHub 最新 Release（`portal-v*`）版本，与当前 `VERSION` 比较；
+- **立即更新**：下载 `portal.tar.gz`（发布包附带 `.sha256` 时会校验），调用 `install.sh --upgrade` 自动替换程序文件、备份数据库并重启门户，完成后页面自动刷新。
+
+更新源配置（systemd 一键安装时已自动写入 `/etc/portal/portal.env`）：
+
+```dotenv
+PORTAL_UPDATE_REPO=你的用户名/my-3x-ui
+# 服务器访问 GitHub 困难时可加镜像前缀
+PORTAL_UPDATE_MIRROR=https://ghproxy.net/
+```
+
+命令行也可以只检查不安装：
+
+```bash
+sudo bash /opt/portal/scripts/install.sh --check-update --repo 你的用户名/my-3x-ui
+```
+
+> 后台一键更新仅适用于 **systemd 部署**（服务以 `portal` 用户运行、代码目录只读，实际更新由 root 定时任务完成）。Docker 部署请在宿主机 `docker pull` 新镜像后重启容器；源码/本地部署请执行 `install.sh --upgrade`。数据库与 `/etc/portal/portal.env` 会保留，升级前数据库自动备份到 `/var/backups/portal/`。
 
 ## 安全建议
 

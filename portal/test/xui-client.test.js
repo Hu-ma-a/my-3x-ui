@@ -300,14 +300,20 @@ describe('3x-ui REST 客户端（用户名密码模式与错误路径）', () =>
 
   it('未配置凭据时给出明确错误', async () => {
     const client = new XuiClient({ url: 'http://127.0.0.1:9', apiToken: '', username: '', timeoutMs: 500 });
-    await assert.rejects(() => client.listInbounds(), (err) => err instanceof XuiError && err.message.includes('未配置 3x-ui API Token'));
+    await assert.rejects(() => client.listInbounds(), (err) => {
+      assert.doesNotMatch(err.message, /3x-ui/i, '错误信息不应出现上游品牌字样');
+      return err instanceof XuiError && err.message.includes('未配置面板 API Token');
+    });
   });
 
   it('认证失败时报 token 权限问题', async () => {
     const panel = await startFakePanel({ always401: true });
     try {
       const client = new XuiClient({ url: panel.url, apiToken: 'bad-token', timeoutMs: 2000 });
-      await assert.rejects(() => client.listInbounds(), (err) => err instanceof XuiError && err.message.includes('认证失败'));
+      await assert.rejects(() => client.listInbounds(), (err) => {
+        assert.doesNotMatch(err.message, /3x-ui/i, '错误信息不应出现上游品牌字样');
+        return err instanceof XuiError && err.message.includes('认证失败');
+      });
     } finally {
       await panel.close();
     }
@@ -317,7 +323,10 @@ describe('3x-ui REST 客户端（用户名密码模式与错误路径）', () =>
     const panel = await startFakePanel({ delayMs: 400 });
     try {
       const client = new XuiClient({ url: panel.url, apiToken: 'tok', timeoutMs: 100 });
-      await assert.rejects(() => client.listInbounds(), (err) => err instanceof XuiError && err.message.includes('超时'));
+      await assert.rejects(() => client.listInbounds(), (err) => {
+        assert.doesNotMatch(err.message, /3x-ui/i, '错误信息不应出现上游品牌字样');
+        return err instanceof XuiError && err.message.includes('超时');
+      });
     } finally {
       await panel.close();
     }

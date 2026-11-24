@@ -19,6 +19,9 @@ PORTAL_DIR="${PORTAL_DIR:-/opt/portal}"
 PORTAL_ENV_DIR="${PORTAL_ENV_DIR:-/etc/portal}"
 PORTAL_ENV_FILE="${PORTAL_ENV_FILE:-$PORTAL_ENV_DIR/portal.env}"
 PORTAL_UNIT="/etc/systemd/system/portal.service"
+UPDATE_RUNNER="/usr/local/lib/portal/update-runner.mjs"
+UPDATE_UNIT="/etc/systemd/system/portal-update.service"
+UPDATE_TIMER="/etc/systemd/system/portal-update.timer"
 DEFAULT_PORT="8090"
 NODE_MIN_MAJOR=22
 NODE_MIN_MINOR=5
@@ -45,6 +48,7 @@ ADMIN_PASS_ARG="${PORTAL_ADMIN_PASSWORD:-}"
 PUBLIC_URL_ARG="${PORTAL_PUBLIC_URL:-}"
 AUTO_DETECT=1
 WATCH=0
+CHECK_UPDATE=0
 INSECURE_TLS=0
 XUI_URL_SET=0
 XUI_TOKEN_SET=0
@@ -97,6 +101,7 @@ usage() {
 初始化配置
   --auto / --no-auto    自动识别本机 3x-ui 的端口 / basePath 并创建专用 API Token（默认开启）
   --watch               安装 6 小时定时自检：3x-ui 升级 / 改端口后自动同步门户配置
+  --check-update        检查 GitHub 上是否有新版本（不安装；配合 --repo / --gh-mirror）
   --xui-url URL         3x-ui 面板地址，默认 http://127.0.0.1:2053
   --xui-token TOKEN     3x-ui admin scope API Token（新版面板「设置 → 安全设定 → API 令牌」）
   --xui-user USER       面板账号（旧版 3x-ui 没有 Token 功能时改用账号密码，需关闭 2FA）
@@ -139,6 +144,7 @@ while [ $# -gt 0 ]; do
     --auto) AUTO_DETECT=1; shift ;;
     --no-auto) AUTO_DETECT=0; shift ;;
     --watch) WATCH=1; shift ;;
+    --check-update) CHECK_UPDATE=1; shift ;;
     --upgrade) ACTION="upgrade"; shift ;;
     --uninstall) ACTION="uninstall"; shift ;;
     --docker) MODE="docker"; shift ;;
@@ -310,6 +316,9 @@ write_env_systemd() {
       [ -n "$XUI_URL_ARG" ] && update_env_key "XUI_URL" "$XUI_URL_ARG" "$PORTAL_ENV_FILE"
       [ -n "$XUI_TOKEN_ARG" ] && update_env_key "XUI_API_TOKEN" "$XUI_TOKEN_ARG" "$PORTAL_ENV_FILE"
       [ -n "$PUBLIC_URL_ARG" ] && update_env_key "PORTAL_PUBLIC_URL" "$PUBLIC_URL_ARG" "$PORTAL_ENV_FILE"
+      [ -n "$REPO" ] && update_env_key "PORTAL_UPDATE_REPO" "$REPO" "$PORTAL_ENV_FILE"
+      [ -n "$GH_MIRROR" ] && update_env_key "PORTAL_UPDATE_MIRROR" "$GH_MIRROR" "$PORTAL_ENV_FILE"
+      update_env_key "PORTAL_DEPLOY_MODE" "systemd" "$PORTAL_ENV_FILE"
       return 0
     fi
     if [ "$FORCE" != 1 ]; then
@@ -342,6 +351,8 @@ PORTAL_PUBLIC_URL=${PUBLIC_URL_ARG}
 PORTAL_TRUST_PROXY=false
 PORTAL_LOG_LEVEL=info
 PORTAL_DEPLOY_MODE=systemd
+PORTAL_UPDATE_REPO=${REPO}
+PORTAL_UPDATE_MIRROR=${GH_MIRROR}
 
 XUI_URL=${XUI_URL_ARG}
 XUI_BASE_PATH=${XUI_BASE_PATH_ARG}
@@ -367,10 +378,13 @@ write_env_docker() {
       [ -n "$XUI_URL_ARG" ] && update_env_key "XUI_URL" "$XUI_URL_ARG" "$PORTAL_ENV_FILE"
       [ -n "$XUI_TOKEN_ARG" ] && update_env_key "XUI_API_TOKEN" "$XUI_TOKEN_ARG" "$PORTAL_ENV_FILE"
       [ -n "$PUBLIC_URL_ARG" ] && update_env_key "PORTAL_PUBLIC_URL" "$PUBLIC_URL_ARG" "$PORTAL_ENV_FILE"
+      [ -n "$REPO" ] && update_env_key "PORTAL_UPDATE_REPO" "$REPO" "$PORTAL_ENV_FILE"
+      [ -n "$GH_MIRROR" ] && update_env_key "PORTAL_UPDATE_MIRROR" "$GH_MIRROR" "$PORTAL_ENV_FILE"
       # Docker 的数据路径与监听地址必须固定为容器内取值
       update_env_key "PORTAL_HOST" "0.0.0.0" "$PORTAL_ENV_FILE"
       update_env_key "PORTAL_DATA_DIR" "/data" "$PORTAL_ENV_FILE"
       update_env_key "PORTAL_DB_PATH" "/data/portal.db" "$PORTAL_ENV_FILE"
+      update_env_key "PORTAL_DEPLOY_MODE" "docker" "$PORTAL_ENV_FILE"
       return 0
     fi
     if [ "$FORCE" != 1 ]; then
@@ -399,6 +413,8 @@ PORTAL_ADMIN_PASSWORD=${pass}
 PORTAL_PUBLIC_URL=${PUBLIC_URL_ARG}
 PORTAL_TRUST_PROXY=false
 PORTAL_DEPLOY_MODE=docker
+PORTAL_UPDATE_REPO=${REPO}
+PORTAL_UPDATE_MIRROR=${GH_MIRROR}
 
 XUI_URL=${XUI_URL_ARG}
 XUI_BASE_PATH=${XUI_BASE_PATH_ARG}
@@ -738,6 +754,72 @@ EOF
   blue "已安装跟随自检：每 6 小时检查 3x-ui 的版本 / 端口 / basePath / Token 变化并自动同步"
 }
 
+install_update_units() {
+  local runner_src="${PORTAL_DIR}/scripts/update-runner.mjs"
+  if [ ! -f "$runner_src" ]; then
+    yellow "未找到 ${runner_src}，跳过后台更新执行器安装"
+    return 0
+  fi
+  install -d -m 755 /usr/local/lib/portal
+  install -m 755 "$runner_src" "$UPDATE_RUNNER"
+  cat >"$UPDATE_UNIT" <<EOF
+[Unit]
+Description=3x-ui portal update runner
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+EnvironmentFile=-${PORTAL_ENV_FILE}
+Environment=PORTAL_HOME=${PORTAL_DIR}
+Environment=PORTAL_ENV_FILE=${PORTAL_ENV_FILE}
+ExecStart=${NODE_BIN} ${UPDATE_RUNNER}
+Nice=10
+EOF
+  cat >"$UPDATE_TIMER" <<'EOF'
+[Unit]
+Description=Process portal update requests every 30 seconds
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=30s
+Persistent=false
+
+[Install]
+WantedBy=timers.target
+EOF
+  systemctl daemon-reload 2>/dev/null || true
+  systemctl enable --now portal-update.timer >/dev/null 2>&1 || {
+    yellow "启用后台更新执行器失败，可手动执行：systemctl enable --now portal-update.timer"
+    return 0
+  }
+  blue "已安装后台更新执行器：管理后台「系统设置 → 版本更新」可检查并一键更新"
+}
+
+check_update() {
+  local repo="$REPO" mirror="$GH_MIRROR" current latest tag effective url
+  if [ -f "$PORTAL_ENV_FILE" ]; then
+    [ -z "$repo" ] && repo="$(grep '^PORTAL_UPDATE_REPO=' "$PORTAL_ENV_FILE" 2>/dev/null | head -n1 | cut -d= -f2- || true)"
+    [ -z "$mirror" ] && mirror="$(grep '^PORTAL_UPDATE_MIRROR=' "$PORTAL_ENV_FILE" 2>/dev/null | head -n1 | cut -d= -f2- || true)"
+  fi
+  [ -n "$repo" ] || die "未配置更新仓库：请加 --repo OWNER/REPO，或在 $PORTAL_ENV_FILE 设置 PORTAL_UPDATE_REPO。"
+  current="$(cat "$PORTAL_DIR/VERSION" 2>/dev/null || echo '未知')"
+  url="https://github.com/${repo}/releases/latest"
+  [ -n "$mirror" ] && url="${mirror%/}/$url"
+  effective="$(curl -sSIL -o /dev/null -w '%{url_effective}' --max-time 25 "$url" 2>/dev/null || true)"
+  tag="${effective##*/}"
+  latest="${tag#portal-v}"
+  [ -n "$effective" ] && [ -n "$latest" ] && [ "$latest" != "$tag" ] || die "检查更新失败：无法访问 $url"
+  echo "当前版本： v${current}"
+  echo "最新版本： v${latest}（${tag}）"
+  if [ "$current" = "$latest" ] || [ "$(printf '%s\n%s\n' "$current" "$latest" | sort -V | tail -n1)" = "$current" ]; then
+    echo "已是最新版本。"
+  else
+    echo "发现新版本，可执行：sudo bash $0 --upgrade${REPO:+ --repo $REPO}"
+    echo "或安装后在管理后台「系统设置 → 版本更新」一键更新。"
+  fi
+}
+
 do_uninstall() {
   require_root
   if [ "$MODE" = "docker" ]; then
@@ -753,7 +835,10 @@ do_uninstall() {
   systemctl stop portal 2>/dev/null || true
   systemctl disable portal 2>/dev/null || true
   systemctl disable --now portal-xui-sync.timer 2>/dev/null || true
-  rm -f "$PORTAL_UNIT" /etc/systemd/system/portal-xui-sync.timer /etc/systemd/system/portal-xui-sync.service
+  systemctl disable --now portal-update.timer 2>/dev/null || true
+  rm -f "$PORTAL_UNIT" /etc/systemd/system/portal-xui-sync.timer /etc/systemd/system/portal-xui-sync.service \
+    "$UPDATE_UNIT" "$UPDATE_TIMER" "$UPDATE_RUNNER"
+  rm -rf /usr/local/lib/portal
   systemctl daemon-reload 2>/dev/null || true
   echo "已移除 systemd 服务。程序目录 ${PORTAL_DIR}、数据目录 ${PORTAL_DIR}/data 与 ${PORTAL_ENV_FILE} 保留。"
   exit 0
@@ -820,6 +905,7 @@ install_systemd() {
     ADMIN_PASS_GENERATED="$(grep '^PORTAL_ADMIN_PASSWORD=' "$PORTAL_ENV_FILE" | head -n1 | cut -d= -f2-)"
   fi
   write_unit
+  install_update_units
 
   blue "启动服务"
   systemctl daemon-reload
@@ -899,6 +985,11 @@ install_docker() {
     exit 1
   fi
 }
+
+if [ "$CHECK_UPDATE" = 1 ]; then
+  check_update
+  exit 0
+fi
 
 if [ "$ACTION" != "uninstall" ] && [ "$AUTO_DETECT" = 1 ]; then
   detect_xui

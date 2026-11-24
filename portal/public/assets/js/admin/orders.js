@@ -53,7 +53,7 @@ export async function render(root, ctx) {
   wrap.innerHTML = `<header class="page-head row-between">
       <div>
         <h1 class="page-title">订单管理</h1>
-        <p class="page-desc">查看全部订单，处理待支付、标记收款与重试 3x-ui 开通</p>
+        <p class="page-desc">查看全部订单，处理待支付、标记收款与重试面板开通</p>
       </div>
       <button type="button" class="btn btn-secondary" data-act="refresh">刷新列表</button>
     </header>
@@ -219,7 +219,7 @@ export async function render(root, ctx) {
       <div class="modal-body stack">
         <dl class="kv">${rows.join('')}</dl>
         ${order.status === 'sync_pending'
-          ? '<p class="text-sm text-muted">订单已支付但 3x-ui 开通失败：后台每 30 秒自动重试，也可点击「重试开通」立即处理。</p>'
+          ? '<p class="text-sm text-muted">订单已支付但 面板开通失败：后台每 30 秒自动重试，也可点击「重试开通」立即处理。</p>'
           : ''}
         ${order.provisionError
           ? `<div class="alert alert-danger"><div class="text-sm"><strong>开通错误：</strong>${esc(order.provisionError)}</div></div>`
@@ -260,7 +260,7 @@ export async function render(root, ctx) {
     try {
       const updated = (await ctx.api.admin.markPaid(order.id)) || {};
       if (updated.status === 'sync_pending') {
-        ctx.toast(`已收款，但 3x-ui 开通失败：${updated.provisionError || '已转入自动重试'}`, 'error');
+        ctx.toast(`已收款，但 面板开通失败：${updated.provisionError || '已转入自动重试'}`, 'error');
       } else {
         ctx.toast('已标记支付并完成入账/开通', 'success');
       }
@@ -279,7 +279,7 @@ export async function render(root, ctx) {
     try {
       const updated = (await ctx.api.admin.retryProvision(order.id)) || {};
       if (updated.status === 'sync_pending') {
-        ctx.toast(`重试仍未成功：${updated.provisionError || '3x-ui 暂不可用'}`, 'error');
+        ctx.toast(`重试仍未成功：${updated.provisionError || '面板暂不可用'}`, 'error');
       } else {
         ctx.toast('已重新发起开通并成功', 'success');
       }

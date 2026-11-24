@@ -94,7 +94,7 @@ export async function render(root, ctx) {
         : '<span class="badge badge-success">生效中</span>';
     const accountBadge = user.status === 'disabled'
       ? '<span class="badge badge-danger">已禁用</span>'
-      : '<span class="badge badge-success">正常</span>';
+      : '<span class="badge badge-success p-status-live">正常</span>';
     const deviceText = deviceLimit == null ? '设备数未知' : deviceLimit === 0 ? '设备不限' : `${deviceLimit} 台设备`;
 
     const usedText = usedBytes == null ? '—' : ctx.ui.bytes(usedBytes);
@@ -153,7 +153,7 @@ export async function render(root, ctx) {
     if (state.error) warnings.push(`实时数据刷新失败：${ctx.ui.escape(state.error)}`);
     if (!liveAvailable) {
       const reason = live && live.error ? `：${ctx.ui.escape(live.error)}` : '';
-      warnings.push(`3x-ui 实时数据暂不可用${reason}，以下展示最近一次购买的缓存信息。`);
+      warnings.push(`实时数据暂不可用${reason}，以下展示最近一次购买的缓存信息。`);
     }
     const warningHtml = warnings.length
       ? `<section class="card p-notice-card">

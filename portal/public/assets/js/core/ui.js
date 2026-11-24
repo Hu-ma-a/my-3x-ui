@@ -11,12 +11,22 @@ const STATUS_MAP = {
   cancelled: { text: '已取消', tone: 'muted' },
   active: { text: '正常', tone: 'success' },
   disabled: { text: '已禁用', tone: 'danger' },
+  banned: { text: '已封禁', tone: 'danger' },
 };
 
 const KIND_MAP = { plan: '套餐', recharge: '充值' };
 
 function escapeHtml(value) {
   return String(value ?? '').replace(/[&<>"']/g, (char) => ESCAPE_MAP[char]);
+}
+
+// 门户品牌名：去掉历史默认里的上游品牌字样，留空时回退为「用户中心」。
+function portalName(raw, fallback = '用户中心') {
+  const cleaned = String(raw || '')
+    .replace(/3x-ui/gi, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return cleaned || fallback;
 }
 
 function money(cents) {
@@ -222,6 +232,7 @@ async function copy(text) {
 
 export const ui = {
   escape: escapeHtml,
+  portalName,
   money,
   bytes,
   pct,

@@ -8,6 +8,7 @@ import { SubscriptionService } from './services/subscription-service.js';
 import { OrderService } from './services/order-service.js';
 import { AccountService } from './services/account-service.js';
 import { AdminService } from './services/admin-service.js';
+import { UpdateService } from './services/update-service.js';
 import { createXuiGateway } from './integrations/xui-gateway.js';
 import { createRoutes } from './api/routes.js';
 import { createHttpServer } from './http/server.js';
@@ -26,8 +27,9 @@ export function createApp(options = {}) {
   const orders = new OrderService({ store, settings, xui, subscription, logger, config });
   const account = new AccountService({ store, subscription });
   const admin = new AdminService({ store, settings, planService: plans, orderService: orders, subscription, authService: auth, xui, logger });
+  const update = new UpdateService({ config });
 
-  const services = { store, config, logger, settings, xui, subscription, plans, auth, orders, account, admin };
+  const services = { store, config, logger, settings, xui, subscription, plans, auth, orders, account, admin, update };
   const routes = createRoutes(services);
   const server = createHttpServer({ config, store, services, routes, logger });
   const retryJob = startProvisionRetryJob({ orders, logger });

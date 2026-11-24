@@ -71,7 +71,7 @@ export class SettingsService {
 
   portalConfig() {
     return {
-      name: this.str('portal.name', '3x-ui 用户中心'),
+      name: this.str('portal.name', '用户中心'),
       registrationEnabled: this.bool('portal.registrationEnabled', true),
       currency: this.str('portal.currency', 'CNY'),
       manualPayInstructions: this.str('portal.manualPayInstructions'),

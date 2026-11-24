@@ -14,6 +14,7 @@ const ROUTES = [
   { path: '/pay/mock', load: () => import('./pages/mock-pay.js') },
   { path: '/admin', load: () => import('./admin/overview.js') },
   { path: '/admin/users', load: () => import('./admin/users.js') },
+  { path: '/admin/admins', load: () => import('./admin/admins.js') },
   { path: '/admin/plans', load: () => import('./admin/plans.js') },
   { path: '/admin/orders', load: () => import('./admin/orders.js') },
   { path: '/admin/recharges', load: () => import('./admin/recharges.js') },
@@ -31,6 +32,7 @@ const NAV_USER = [
 const NAV_ADMIN = [
   { path: '/admin', label: '概览' },
   { path: '/admin/users', label: '用户管理' },
+  { path: '/admin/admins', label: '管理员' },
   { path: '/admin/plans', label: '套餐管理' },
   { path: '/admin/orders', label: '订单管理' },
   { path: '/admin/recharges', label: '充值记录' },
@@ -69,7 +71,7 @@ function toggleTheme() {
 }
 
 function portalName() {
-  return store.config?.portalName || '3x-ui 用户中心';
+  return ui.portalName(store.config?.portalName);
 }
 
 function renderShell() {
@@ -94,7 +96,7 @@ function renderShell() {
           <span class="row text-sm" style="gap: 10px">
             <a href="#/dashboard">用户中心</a>
             <span aria-hidden="true">·</span>
-            <span>节点与客户端由 3x-ui 管理</span>
+            <span>安全稳定的节点服务</span>
           </span>
         </div>
       </footer>

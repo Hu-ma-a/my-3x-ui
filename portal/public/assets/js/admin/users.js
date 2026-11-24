@@ -33,7 +33,7 @@ export async function render(root, ctx) {
   wrap.innerHTML = `<header class="page-head row-between">
       <div>
         <h1 class="page-title">用户管理</h1>
-        <p class="page-desc">搜索用户、启用或禁用账号、调整余额与重置密码</p>
+        <p class="page-desc">搜索用户、封禁或解封账号、调整余额与重置密码</p>
       </div>
       <button type="button" class="btn btn-secondary" data-act="refresh">刷新列表</button>
     </header>
@@ -50,6 +50,7 @@ export async function render(root, ctx) {
           <select class="select" name="status" aria-label="按状态筛选">
             <option value="">全部状态</option>
             <option value="active">正常</option>
+            <option value="banned">已封禁</option>
             <option value="disabled">已禁用</option>
           </select>
           <button class="btn btn-secondary" type="submit">搜索</button>
@@ -95,8 +96,16 @@ export async function render(root, ctx) {
 
   function userRow(user) {
     const active = user.status === 'active';
+    const isAdmin = user.role === 'admin';
     const expired = user.planExpiresAt && Number(user.planExpiresAt) < Date.now();
     const account = user.email || user.clientEmail || '';
+    const statusCell = isAdmin ? '<span class="badge badge-info">管理员</span>' : ui.badge(user.status);
+    const actions = isAdmin
+      ? '<a class="link-btn" href="#/admin/admins">管理员管理</a>'
+      : `<button type="button" class="link-btn${active ? ' danger' : ''}"
+            data-act="toggle-status" data-id="${esc(user.id)}" data-status="${esc(user.status)}" data-username="${esc(user.username)}">${active ? '封禁' : '解封'}</button>
+          <button type="button" class="link-btn" data-act="adjust-balance" data-id="${esc(user.id)}">调整余额</button>
+          <button type="button" class="link-btn" data-act="reset-password" data-id="${esc(user.id)}" data-username="${esc(user.username)}">重置密码</button>`;
     return `<tr>
       <td class="mono">${esc(user.id)}</td>
       <td>
@@ -108,14 +117,9 @@ export async function render(root, ctx) {
       <td class="${expired ? 'text-danger' : ''}">
         ${user.planExpiresAt ? `${esc(dateTime(user.planExpiresAt))}<div class="a-cell-sub">${esc(ui.relative(user.planExpiresAt))}</div>` : '—'}
       </td>
-      <td>${ui.badge(user.status)}</td>
+      <td>${statusCell}</td>
       <td>
-        <div class="actions">
-          <button type="button" class="link-btn${active ? ' danger' : ''}"
-            data-act="toggle-status" data-id="${esc(user.id)}" data-status="${esc(user.status)}" data-username="${esc(user.username)}">${active ? '禁用' : '启用'}</button>
-          <button type="button" class="link-btn" data-act="adjust-balance" data-id="${esc(user.id)}">调整余额</button>
-          <button type="button" class="link-btn" data-act="reset-password" data-id="${esc(user.id)}" data-username="${esc(user.username)}">重置密码</button>
-        </div>
+        <div class="actions">${actions}</div>
       </td>
     </tr>`;
   }
@@ -236,12 +240,13 @@ export async function render(root, ctx) {
   async function toggleStatus(btn) {
     const id = btn.getAttribute('data-id');
     const username = btn.getAttribute('data-username') || '';
-    const next = btn.getAttribute('data-status') === 'active' ? 'disabled' : 'active';
-    if (next === 'disabled') {
+    const active = btn.getAttribute('data-status') === 'active';
+    const next = active ? 'banned' : 'active';
+    if (active) {
       const ok = await ctx.ui.confirm({
-        title: '禁用用户',
-        content: `确定禁用用户「${username}」吗？禁用后该用户会被立即踢下线且无法登录。`,
-        okText: '禁用',
+        title: '封禁用户',
+        content: `确定封禁用户「${username}」吗？封禁后该用户会被立即踢下线且无法登录，已购买套餐与订阅不受影响，可随时解封。`,
+        okText: '封禁',
         danger: true,
       });
       if (!ok) return;
@@ -249,7 +254,7 @@ export async function render(root, ctx) {
     setBusy(btn, '处理中…');
     try {
       await ctx.api.admin.setUserStatus(id, next);
-      ctx.toast(next === 'active' ? '用户已启用' : '用户已禁用', 'success');
+      ctx.toast(active ? '用户已封禁' : '用户已解封', 'success');
       await load();
     } catch (err) {
       if (handleAuthError(ctx, err)) return;

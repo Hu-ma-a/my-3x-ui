@@ -107,7 +107,7 @@ describe('前端模块与核心 API 契约一致', () => {
         used.add(match[1]);
       }
     }
-    const whitelist = new Set(['escape', 'money', 'bytes', 'pct', 'date', 'dateTime', 'relative', 'statusText', 'kindText', 'badge', 'qs', 'qsa', 'on', 'toast', 'confirm', 'empty', 'spinner', 'pagination', 'copy', 'tone']);
+    const whitelist = new Set(['escape', 'portalName', 'money', 'bytes', 'pct', 'date', 'dateTime', 'relative', 'statusText', 'kindText', 'badge', 'qs', 'qsa', 'on', 'toast', 'confirm', 'empty', 'spinner', 'pagination', 'copy', 'tone']);
     for (const method of used) {
       assert.ok(whitelist.has(method), `core/ui.js 缺少方法 ${method}`);
       assert.match(uiSource, new RegExp(`\\b${method}[:(]`), `core/ui.js 未导出 ${method}`);
@@ -198,6 +198,21 @@ describe('视觉规范 v3（卡片定价页风格）', () => {
     for (const file of pageFiles) {
       const source = fs.readFileSync(file, 'utf8');
       assert.ok(!EMOJI.test(source), `${path.basename(file)} 包含 emoji 图标，请改用内联 SVG`);
+    }
+  });
+
+  it('界面不出现上游品牌字样（含管理后台，品牌清洗函数除外）', () => {
+    const coreDir = path.join(PUBLIC, 'assets/js/core');
+    const files = [
+      path.join(PUBLIC, 'index.html'),
+      path.join(PUBLIC, 'assets/js/main.js'),
+      ...listJs(PAGES_DIR),
+      ...listJs(ADMIN_DIR),
+      ...listJs(coreDir).filter((file) => !file.endsWith('ui.js')),
+    ];
+    for (const file of files) {
+      const source = fs.readFileSync(file, 'utf8');
+      assert.doesNotMatch(source, /3x-ui/i, `${path.basename(file)} 仍包含 3x-ui 品牌字样，请使用中性的「面板 / 用户中心」`);
     }
   });
 

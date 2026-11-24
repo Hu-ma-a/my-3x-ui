@@ -240,7 +240,7 @@ export async function render(root, ctx) {
             <div class="field a-span-2">
               <label class="field-label" for="a-plan-inbounds">绑定入站 ID（逗号分隔）</label>
               <input id="a-plan-inbounds" class="input" name="inboundIds" type="text" placeholder="如：1,2" value="${esc(inboundIds)}">
-              <p class="hint">留空则使用「系统设置 → 默认入站 ID」；仍未配置时使用 3x-ui 第一个入站。</p>
+              <p class="hint">留空则使用「系统设置 → 默认入站 ID」；仍未配置时使用面板第一个入站。</p>
               <p class="error-text hidden" data-error-for="inbounds"></p>
             </div>
             <div class="field a-span-2">

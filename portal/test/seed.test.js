@@ -55,6 +55,35 @@ describe('数据库初始化与重启持久化', () => {
     }
   });
 
+  it('默认门户名不含上游品牌，旧默认值重启后自动迁移', async () => {
+    const { config, dir } = buildConfig();
+    let app = null;
+    try {
+      app = createApp({ config, logger: createLogger('error'), xuiMock: new XuiMock() });
+      let address = await app.listen(0, '127.0.0.1');
+      let client = createClient(`http://127.0.0.1:${address.port}`);
+      const fresh = expectOk(await client.get('/api/config'), '首次启动配置');
+      assert.equal(fresh.portalName, '用户中心', '默认门户名不应包含上游品牌字样');
+
+      app.store.run("UPDATE settings SET value = '3x-ui 用户中心' WHERE key = 'portal.name'");
+      await app.close();
+      app = null;
+
+      app = createApp({ config, logger: createLogger('error'), xuiMock: new XuiMock() });
+      address = await app.listen(0, '127.0.0.1');
+      client = createClient(`http://127.0.0.1:${address.port}`);
+      const migrated = expectOk(await client.get('/api/config'), '迁移后的配置');
+      assert.equal(migrated.portalName, '用户中心', '旧默认品牌名应自动迁移');
+    } finally {
+      if (app) await app.close();
+      try {
+        rmSync(dir, { recursive: true, force: true });
+      } catch {
+        // 忽略清理失败。
+      }
+    }
+  });
+
   it('不同数据库实例互相隔离', async () => {
     const first = buildConfig();
     const second = buildConfig();

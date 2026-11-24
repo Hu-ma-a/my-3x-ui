@@ -146,9 +146,9 @@ export class XuiClient {
       });
     } catch (err) {
       if (err?.name === 'TimeoutError' || err?.name === 'AbortError') {
-        throw new XuiError(`连接 3x-ui 超时：${url}`);
+        throw new XuiError(`连接面板超时：${url}`);
       }
-      throw new XuiError(`无法连接 3x-ui（${url}）：${err.message}`);
+      throw new XuiError(`无法连接面板（${url}）：${err.message}`);
     }
 
     if (response.status >= 300 && response.status < 400) {
@@ -156,7 +156,7 @@ export class XuiClient {
         await this.login();
         return this.request(method, path, { body, form, retryAuth: false });
       }
-      throw new XuiError('3x-ui 返回重定向：请检查面板地址、基础路径与登录状态', { status: response.status });
+      throw new XuiError('面板返回重定向：请检查面板地址、基础路径与登录状态', { status: response.status });
     }
     if (response.status === 401 || response.status === 403) {
       if (!this.apiToken && retryAuth) {
@@ -173,8 +173,8 @@ export class XuiClient {
       }
       throw new XuiError(
         this.apiToken
-          ? '3x-ui 认证失败：请检查 API Token 是否有效且为 admin scope'
-          : '3x-ui 认证失败：请检查面板账号密码及权限（若账号开启了两步验证 2FA，请改用 API Token）',
+          ? '面板认证失败：请检查 API Token 是否有效且为 admin scope'
+          : '面板认证失败：请检查面板账号密码及权限（若账号开启了两步验证 2FA，请改用 API Token）',
         { status: response.status },
       );
     }
@@ -184,13 +184,13 @@ export class XuiClient {
     try {
       parsed = text ? JSON.parse(text) : null;
     } catch {
-      throw new XuiError(`3x-ui 返回了非 JSON 响应（HTTP ${response.status}）`, { status: response.status });
+      throw new XuiError(`面板返回了非 JSON 响应（HTTP ${response.status}）`, { status: response.status });
     }
     if (response.status >= 400) {
-      throw new XuiError(parsed?.msg || `3x-ui 请求失败（HTTP ${response.status}）`, { status: response.status });
+      throw new XuiError(parsed?.msg || `面板请求失败（HTTP ${response.status}）`, { status: response.status });
     }
     if (parsed && parsed.success === false) {
-      throw new XuiError(parsed.msg || '3x-ui 操作失败');
+      throw new XuiError(parsed.msg || '面板操作失败');
     }
     return parsed?.obj ?? null;
   }
@@ -203,7 +203,7 @@ export class XuiClient {
       return;
     }
     if (!this.username) {
-      throw new XuiError('未配置 3x-ui API Token，也无法使用面板账号密码登录');
+      throw new XuiError('未配置面板 API Token，也无法使用面板账号密码登录');
     }
     await this.login();
   }
@@ -231,7 +231,7 @@ export class XuiClient {
           signal: AbortSignal.timeout(this.timeoutMs),
         });
       } catch (err) {
-        throw new XuiError(`无法连接 3x-ui 登录接口：${err.message}`);
+        throw new XuiError(`无法连接面板登录接口：${err.message}`);
       }
       this.absorbCookies(response);
       return response;
@@ -252,21 +252,21 @@ export class XuiClient {
       parsed = null;
     }
     if (parsed && parsed.success === false) {
-      const message = String(parsed.msg || '3x-ui 登录失败');
+      const message = String(parsed.msg || '面板登录失败');
       if (/2fa|two.factor/i.test(message)) {
         throw new XuiError('该面板账号启用了两步验证（2FA），无法用账号密码连接；请改用 API Token（面板「设置 → 安全设定 → API 令牌」）。');
       }
       throw new XuiError(message);
     }
     if (response.status === 403) {
-      throw new XuiError('3x-ui 登录被拒（CSRF 校验失败），请确认面板地址 / basePath 正确');
+      throw new XuiError('面板登录被拒（CSRF 校验失败），请确认面板地址 / basePath 正确');
     }
     if (!this.cookieJar.size) {
-      throw new XuiError('3x-ui 登录失败：未获得会话 Cookie（账号密码错误，或该账号启用了 2FA；2FA 账号请改用 API Token）');
+      throw new XuiError('面板登录失败：未获得会话 Cookie（账号密码错误，或该账号启用了 2FA；2FA 账号请改用 API Token）');
     }
     // 登录会重置会话（CSRF 一并失效），重新取一次给后续写请求用
     this.csrfToken = await this.fetchCsrfToken();
-    this.logger?.debug('3x-ui 登录成功（账号密码模式）');
+    this.logger?.debug('面板登录成功（账号密码模式）');
   }
 }
 

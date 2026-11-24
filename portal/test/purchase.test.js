@@ -84,7 +84,7 @@ describe('套餐购买与 3x-ui 自动开通', () => {
     xui.setOffline(true);
     const failed = expectOk(await offlineUser.post('/api/me/purchase', { planId: 1, method: 'balance' }), '离线购买');
     assert.equal(failed.order.status, 'sync_pending');
-    assert.ok(failed.order.provisionError.includes('模拟 3x-ui 离线'));
+    assert.ok(failed.order.provisionError.includes('模拟面板离线'));
 
     xui.setOffline(false);
     const retried = expectOk(await admin.post(`/api/admin/orders/${failed.order.id}/retry-provision`, {}), '重试开通');

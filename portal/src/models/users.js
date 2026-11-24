@@ -127,3 +127,16 @@ export function countByStatus(store, status) {
   const row = store.get('SELECT COUNT(*) AS total FROM users WHERE status = ?', status);
   return Number(row.total);
 }
+
+export function listAdmins(store) {
+  return store.all(`SELECT ${USER_COLUMNS} FROM users WHERE role = 'admin' ORDER BY id ASC`);
+}
+
+export function countActiveAdmins(store) {
+  const row = store.get("SELECT COUNT(*) AS total FROM users WHERE role = 'admin' AND status = 'active'");
+  return Number(row.total);
+}
+
+export function remove(store, id) {
+  store.run('DELETE FROM users WHERE id = ?', Number(id));
+}

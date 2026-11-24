@@ -47,7 +47,7 @@ export async function render(root, ctx) {
   wrap.innerHTML = `<header class="page-head row-between">
       <div>
         <h1 class="page-title">管理概览</h1>
-        <p class="page-desc" id="a-overview-desc">门户运营数据与 3x-ui 连接状态，数据实时拉取</p>
+        <p class="page-desc" id="a-overview-desc">门户运营数据与 面板连接状态，数据实时拉取</p>
       </div>
       <button type="button" class="btn btn-secondary" data-act="refresh">刷新数据</button>
     </header>
@@ -69,7 +69,7 @@ export async function render(root, ctx) {
         <section class="card">
           <div class="card-head">
             <div>
-              <h2 class="card-title"><span class="a-title-icon">${ICON.link}</span>3x-ui 连接</h2>
+              <h2 class="card-title"><span class="a-title-icon">${ICON.link}</span>面板连接</h2>
               <p class="card-desc">通过面板 API 读取入站与订阅信息</p>
             </div>
             <button type="button" class="btn btn-secondary btn-sm" data-act="test-xui">重新测试</button>
@@ -218,14 +218,14 @@ export async function render(root, ctx) {
         rows.push(`<div class="row-item"><div class="row-main"><div class="row-sub">仅展示前 10 个入站，共 ${inbounds.length} 个</div></div></div>`);
       }
       if (!inbounds.length) {
-        rows.push(`<div class="row-item"><div class="row-main"><div class="row-sub">未发现入站，请先在 3x-ui 中创建入站。</div></div></div>`);
+        rows.push(`<div class="row-item"><div class="row-main"><div class="row-sub">未发现入站，请先在面板中创建入站。</div></div></div>`);
       }
       xuiBox.innerHTML = `<div class="rows">${rows.join('')}</div>`;
     } catch (err) {
       if (handleAuthError(ctx, err)) return;
       xuiBox.innerHTML = `<div class="stack-sm">
         <div class="alert alert-danger">连接失败：${esc(err && err.message ? err.message : '未知错误')}</div>
-        <p class="hint">请检查「系统设置 → 3x-ui」中的面板地址、basePath、API Token 与网络连通性，并确认面板允许当前来源访问。</p>
+        <p class="hint">请检查「系统设置 → 面板连接」中的面板地址、basePath、API Token 与网络连通性，并确认面板允许当前来源访问。</p>
         <a class="link-btn" href="#/admin/settings">去修改设置</a>
       </div>`;
     } finally {

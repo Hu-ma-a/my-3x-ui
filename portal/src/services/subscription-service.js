@@ -27,7 +27,7 @@ export class SubscriptionService {
     const inbounds = (await this.xui.client().listInbounds()) || [];
     const first = inbounds.find((item) => item.enable !== false) || inbounds[0];
     if (!first) {
-      throw errors.badRequest('no_inbound', '3x-ui 中没有任何可用入站，请先在面板创建入站或配置默认入站');
+      throw errors.badRequest('no_inbound', '面板中没有任何可用入站，请先在面板创建入站或配置默认入站');
     }
     return [Number(first.id)];
   }
@@ -148,7 +148,7 @@ export class SubscriptionService {
         return {
           ...empty,
           available: false,
-          error: '3x-ui 中未找到该客户端，购买套餐后会自动创建',
+          error: '面板中未找到该客户端，购买套餐后会自动创建',
           expiresAt: user.planExpiresAt,
           totalBytes: user.totalBytes,
           deviceLimit: user.clientLimit,
@@ -179,11 +179,11 @@ export class SubscriptionService {
         error: null,
       };
     } catch (err) {
-      this.logger?.warn('读取 3x-ui 客户端失败：', err.message);
+      this.logger?.warn('读取面板客户端失败：', err.message);
       return {
         ...empty,
         available: false,
-        error: `无法读取 3x-ui 数据：${err.message}`,
+        error: `无法读取面板数据：${err.message}`,
         expiresAt: user.planExpiresAt,
         totalBytes: user.totalBytes,
         deviceLimit: user.clientLimit,

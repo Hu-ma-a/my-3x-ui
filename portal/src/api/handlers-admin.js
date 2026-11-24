@@ -1,4 +1,4 @@
-import { int, pagination, password as validatePassword, str } from '../util/validate.js';
+import { email as validateEmail, int, pagination, password as validatePassword, str, username as validateUsername } from '../util/validate.js';
 
 function idParam(ctx) {
   return int(ctx.params, 'id', { label: 'ID', min: 1 });
@@ -41,6 +41,34 @@ export async function resetUserPassword(ctx, services) {
   const body = await ctx.body();
   const newPassword = validatePassword(body, 'newPassword', { label: '新密码' });
   return services.admin.resetPassword(idParam(ctx), newPassword);
+}
+
+export function listAdmins(ctx, services) {
+  return services.admin.listAdmins(ctx.user.id);
+}
+
+export async function createAdmin(ctx, services) {
+  const body = await ctx.body();
+  const username = validateUsername(body);
+  const password = validatePassword(body);
+  const email = validateEmail(body);
+  return services.admin.createAdmin({ username, password, email });
+}
+
+export async function setAdminStatus(ctx, services) {
+  const body = await ctx.body();
+  const status = str(body, 'status', { label: '状态', min: 1, max: 16 });
+  return services.admin.setAdminStatus(ctx.user.id, idParam(ctx), status);
+}
+
+export async function resetAdminPassword(ctx, services) {
+  const body = await ctx.body();
+  const newPassword = validatePassword(body, 'newPassword', { label: '新密码' });
+  return services.admin.resetAdminPassword(idParam(ctx), newPassword);
+}
+
+export function deleteAdmin(ctx, services) {
+  return services.admin.deleteAdmin(ctx.user.id, idParam(ctx));
 }
 
 export function listPlans(ctx, services) {
@@ -111,4 +139,16 @@ export async function updateSettings(ctx, services) {
 
 export async function testXui(ctx, services) {
   return services.admin.testXui();
+}
+
+export function updateStatus(ctx, services) {
+  return services.update.status();
+}
+
+export function checkUpdate(ctx, services) {
+  return services.update.enqueue('check');
+}
+
+export function applyUpdate(ctx, services) {
+  return services.update.enqueue('apply');
 }

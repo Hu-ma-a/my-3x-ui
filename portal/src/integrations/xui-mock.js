@@ -19,7 +19,7 @@ export class XuiMock {
     this.offline = value;
   }
 
-  failNext(operation, message = '模拟 3x-ui 失败') {
+  failNext(operation, message = '模拟面板失败') {
     this.failures.push({ operation, message });
   }
 
@@ -38,7 +38,7 @@ export class XuiMock {
 
   check(operation) {
     this.calls.push(operation);
-    if (this.offline) throw new XuiError('模拟 3x-ui 离线');
+    if (this.offline) throw new XuiError('模拟面板离线');
     const index = this.failures.findIndex((item) => item.operation === operation);
     if (index >= 0) {
       const [failure] = this.failures.splice(index, 1);

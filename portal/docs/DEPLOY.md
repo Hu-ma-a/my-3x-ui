@@ -640,3 +640,25 @@ GitHub 发布（得到 Release 的 `portal.tar.gz` 与 `ghcr.io/<owner>/<repo>-p
 推送 tag `portal-v1.0.0`，或手动运行 `portal-release` workflow（见 `.github/workflows/portal-release.yml`）。
 
 安装脚本参数与行为：`portal/scripts/install.sh --help`；安装位置、端口、管理员账号均可通过参数覆盖。
+
+## 13. 版本更新（后台一键更新 / 检查更新）
+
+systemd 安装或执行 `--upgrade` 时，安装脚本会追加 `portal-update.timer`（每 30 秒处理一次更新请求）和 root 执行器 `/usr/local/lib/portal/update-runner.mjs`。管理员可在 **管理 → 系统设置 → 版本更新**：
+
+- **检查更新**：读取 GitHub 最新 `portal-v*` Release，与当前 `VERSION` 比较；
+- **立即更新**：下载 `portal.tar.gz`（发布包附带 `.sha256` 时校验），调用 `install.sh --upgrade` 自动替换程序文件、备份数据库并重启门户。
+
+更新源配置（systemd 一键安装时自动写入）：
+
+```dotenv
+PORTAL_UPDATE_REPO=OWNER/REPO
+PORTAL_UPDATE_MIRROR=https://ghproxy.net/   # 可选：服务器访问 GitHub 困难时
+```
+
+命令行只检查不安装：
+
+```bash
+sudo bash /opt/portal/scripts/install.sh --check-update --repo OWNER/REPO
+```
+
+> 后台一键更新仅支持 systemd 部署：门户进程以 `portal` 用户运行且代码目录只读，更新由 root 的 timer 执行，不需要给 Web 进程 root 权限。Docker 部署请 `docker pull` 新镜像后重启容器；数据库和 `/etc/portal/portal.env` 在升级时始终保留。

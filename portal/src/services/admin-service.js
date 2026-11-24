@@ -1,6 +1,7 @@
 import * as usersModel from '../models/users.js';
 import * as ordersModel from '../models/orders.js';
 import * as sessionModel from '../models/sessions.js';
+import { hashPassword } from '../auth/password.js';
 import { errors } from '../util/errors.js';
 import { dayStartMs, monthStartMs } from '../util/time.js';
 import { int } from '../util/validate.js';
@@ -66,12 +67,76 @@ export class AdminService {
   }
 
   setUserStatus(id, status) {
-    if (!['active', 'disabled'].includes(status)) throw errors.validation('用户状态只能是 active 或 disabled');
+    if (!['active', 'disabled', 'banned'].includes(status)) {
+      throw errors.validation('用户状态只能是 active、disabled 或 banned');
+    }
     const row = usersModel.findById(this.store, id);
     if (!row) throw errors.notFound('user_not_found', '用户不存在');
+    if (row.role === 'admin') throw errors.validation('管理员账号请到「管理员」页面操作');
     usersModel.setStatus(this.store, id, status);
-    if (status === 'disabled') sessionModel.removeByUser(this.store, id);
+    if (status !== 'active') sessionModel.removeByUser(this.store, id);
     return usersModel.toUser(usersModel.findById(this.store, id));
+  }
+
+  listAdmins(actorId) {
+    return {
+      items: usersModel.listAdmins(this.store).map((row) => ({
+        ...usersModel.toUser(row),
+        isSelf: Number(row.id) === Number(actorId),
+      })),
+    };
+  }
+
+  createAdmin({ username, password, email = '' }) {
+    if (usersModel.existsUsername(this.store, username)) {
+      throw errors.conflict('username_taken', '该用户名已被占用');
+    }
+    if (email && usersModel.existsEmail(this.store, email)) {
+      throw errors.conflict('email_taken', '该邮箱已被占用');
+    }
+    const id = usersModel.create(this.store, {
+      username,
+      email,
+      passwordHash: hashPassword(password),
+      role: 'admin',
+    });
+    return { ...usersModel.toUser(usersModel.findById(this.store, id)), isSelf: false };
+  }
+
+  setAdminStatus(actorId, id, status) {
+    if (!['active', 'disabled'].includes(status)) {
+      throw errors.validation('管理员状态只能是 active 或 disabled');
+    }
+    const row = usersModel.findById(this.store, id);
+    if (!row || row.role !== 'admin') throw errors.notFound('admin_not_found', '管理员不存在');
+    if (Number(id) === Number(actorId) && status !== 'active') {
+      throw errors.validation('不能禁用当前登录的管理员');
+    }
+    if (status !== 'active' && row.status === 'active' && usersModel.countActiveAdmins(this.store) <= 1) {
+      throw errors.validation('至少需要保留一个可用的管理员');
+    }
+    usersModel.setStatus(this.store, id, status);
+    if (status !== 'active') sessionModel.removeByUser(this.store, id);
+    return { ...usersModel.toUser(usersModel.findById(this.store, id)), isSelf: Number(id) === Number(actorId) };
+  }
+
+  resetAdminPassword(id, newPassword) {
+    const row = usersModel.findById(this.store, id);
+    if (!row || row.role !== 'admin') throw errors.notFound('admin_not_found', '管理员不存在');
+    this.authService.resetPasswordByAdmin(id, newPassword);
+    return { ok: true };
+  }
+
+  deleteAdmin(actorId, id) {
+    const row = usersModel.findById(this.store, id);
+    if (!row || row.role !== 'admin') throw errors.notFound('admin_not_found', '管理员不存在');
+    if (Number(id) === Number(actorId)) throw errors.validation('不能删除当前登录的管理员');
+    if (row.status === 'active' && usersModel.countActiveAdmins(this.store) <= 1) {
+      throw errors.validation('至少需要保留一个可用的管理员');
+    }
+    sessionModel.removeByUser(this.store, id);
+    usersModel.remove(this.store, id);
+    return { ok: true };
   }
 
   adjustBalance(id, deltaCents, note = '') {

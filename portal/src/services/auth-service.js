@@ -57,7 +57,12 @@ export class AuthService {
       throw new AppError('invalid_credentials', '用户名或密码错误', 401);
     }
     if (row.status !== 'active') {
-      throw new AppError('account_disabled', '账号已被禁用，请联系管理员', 403);
+      const banned = row.status === 'banned';
+      throw new AppError(
+        banned ? 'account_banned' : 'account_disabled',
+        banned ? '账号已被封禁，请联系管理员' : '账号已被禁用，请联系管理员',
+        403,
+      );
     }
     this.limiter.reset(key);
     const session = this.createSession(row.id, { ip, userAgent });
