@@ -151,18 +151,22 @@
 ### GET /api/plans
 → `{"ok":true,"data":{ "plans": [Plan...] }}`，仅 enabled 的套餐，按 `sort,id`。
 
+### GET /api/auth/captcha
+→ `data = {"captchaId":"…","question":"3 + 5 = ?","expiresIn":300}`（注册前获取，5 分钟内有效，一次性使用）。
+
 ### POST /api/auth/register
-请求：`{"username":"alice","email":"a@b.com","password":"********"}`
+请求：`{"username":"alice","email":"a@b.com","password":"********","captchaId":"…","captchaAnswer":"8"}`
 - `username`：3–32 字符，仅 `a-zA-Z0-9_.-`
 - `email`：可选，合法邮箱，唯一
 - `password`：8–72 字符
+- `captchaId` / `captchaAnswer`：来自验证码接口，回答正确才能注册
 成功：`200`，`data = {"user": User, "csrfToken": "…"}` 并设置会话 Cookie。
-失败码：`registration_closed`、`username_taken`、`email_taken`、`validation_error`。
+失败码：`registration_closed`、`captcha_required`、`captcha_invalid`、`username_taken`、`email_taken`、`validation_error`。
 
 ### POST /api/auth/login
 请求：`{"username":"alice","password":"********"}`
 成功：`data = {"user": User, "csrfToken": "…"}` + 会话 Cookie。
-失败：`invalid_credentials`（401）、`account_disabled`（403）、`too_many_attempts`（429）。
+失败：`invalid_credentials`（401）、`account_disabled` / `account_banned`（403）、`too_many_attempts`（429）。
 
 ### POST /api/auth/logout
 成功：`data = {"ok":true}`，清除 Cookie。
@@ -239,7 +243,7 @@
 
 ### 套餐管理
 - `GET /api/admin/plans` → `{"items":[Plan...]}`（含 disabled）
-- `POST /api/admin/plans` 请求体：`{"name","description","priceCents","days","trafficGb","deviceLimit","inboundIds","enabled","featured","sort"}` → `data=Plan`
+- `POST /api/admin/plans` 请求体：`{"name","description","priceCents","days","periodLabel","trafficGb","deviceLimit","inboundIds","enabled","featured","sort"}` → `data=Plan`（`periodLabel` 为价格后显示的单位，默认「期」，可改月/年等）
 - `PUT /api/admin/plans/:id` 同上（部分字段可省，缺省保持不变）→ `data=Plan`
 - `DELETE /api/admin/plans/:id` → `data={"ok":true}`；有订单引用时仅置为 disabled 并返回 `data={"ok":true,"disabled":true}`
 

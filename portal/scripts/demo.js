@@ -92,8 +92,19 @@ try {
   await admin.put('/api/admin/settings', { 'portal.name': '演示云用户中心' });
   kv('管理员', 'admin / admin12345');
 
-  line('3. 用户注册');
-  const registered = await user.post('/api/auth/register', { username: 'demo', password: 'demo12345', email: 'demo@example.com' });
+  line('3. 用户注册（带图形验证码）');
+  const captcha = await user.get('/api/auth/captcha');
+  const parts = String(captcha.question).match(/(\d+)\s*([+-])\s*(\d+)/);
+  const captchaAnswer = parts
+    ? String(parts[2] === '+' ? Number(parts[1]) + Number(parts[3]) : Number(parts[1]) - Number(parts[3]))
+    : '';
+  const registered = await user.post('/api/auth/register', {
+    username: 'demo',
+    password: 'demo12345',
+    email: 'demo@example.com',
+    captchaId: captcha.captchaId,
+    captchaAnswer,
+  });
   kv('用户', `${registered.user.username}（ID ${registered.user.id}）`);
 
   line('4. 管理员给用户充值余额 ¥500');

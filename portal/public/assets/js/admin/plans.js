@@ -218,6 +218,12 @@ export async function render(root, ctx) {
               <p class="error-text hidden" data-error-for="price"></p>
             </div>
             <div class="field">
+              <label class="field-label" for="a-plan-period">计费单位（价格后显示）</label>
+              <input id="a-plan-period" class="input" name="periodLabel" type="text" maxlength="8" placeholder="如：期、月、年" value="${esc(p.periodLabel || '期')}">
+              <p class="hint">显示为「¥29.90 / 期」，可改成月、年、季等</p>
+              <p class="error-text hidden" data-error-for="periodLabel"></p>
+            </div>
+            <div class="field">
               <label class="field-label" for="a-plan-days">有效期（天）</label>
               <input id="a-plan-days" class="input" name="days" type="number" step="1" min="1" placeholder="如：30" value="${esc(p.days != null ? p.days : '')}">
               <p class="error-text hidden" data-error-for="days"></p>
@@ -341,6 +347,9 @@ export async function render(root, ctx) {
     if (!priceRaw || !Number.isFinite(priceYuan) || priceYuan < 0) errors.price = '价格需为不小于 0 的数字';
     const priceCents = Math.round(priceYuan * 100);
 
+    const periodLabel = (get('periodLabel') || '期').trim();
+    if (!periodLabel || periodLabel.length > 8) errors.periodLabel = '计费单位需为 1–8 个字符';
+
     const days = Number(get('days'));
     if (!Number.isInteger(days) || days < 1) errors.days = '有效期至少 1 天';
 
@@ -381,6 +390,7 @@ export async function render(root, ctx) {
       description: get('description'),
       priceCents,
       days,
+      periodLabel,
       trafficGb,
       deviceLimit,
       inboundIds,

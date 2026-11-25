@@ -68,6 +68,9 @@ function parsePlanBody(body, current) {
   const description = optionalStr(source, 'description', { label: '套餐描述', max: 255 });
   const priceCents = source.priceCents === undefined && current ? current.priceCents : int(source, 'priceCents', { label: '价格(分)', min: 0, max: 100000000 });
   const days = source.days === undefined && current ? current.days : int(source, 'days', { label: '有效期天数', min: 1, max: 3650 });
+  const periodLabel = source.periodLabel === undefined && current
+    ? current.periodLabel
+    : (optionalStr(source, 'periodLabel', { label: '计费单位', max: 8 }) || (current ? current.periodLabel : '期'));
   const trafficGb = source.trafficGb === undefined && current ? current.trafficGb : number(source, 'trafficGb', { label: '流量(GB)', min: 0, max: 1024 * 1024 });
   const deviceLimit = source.deviceLimit === undefined && current ? current.deviceLimit : int(source, 'deviceLimit', { label: '设备数', min: 0, max: 1000 });
   const inboundIds = source.inboundIds === undefined && current ? current.inboundIds : intList(source, 'inboundIds', { label: '绑定入站' });
@@ -79,6 +82,7 @@ function parsePlanBody(body, current) {
     description: source.description === undefined && current ? current.description : description,
     priceCents,
     days,
+    periodLabel,
     trafficGb,
     deviceLimit,
     inboundIds,

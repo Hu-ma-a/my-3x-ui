@@ -287,7 +287,7 @@ export async function render(root, ctx) {
         <h3 class="price-name">${ctx.ui.escape(plan.name)}</h3>
         ${owned ? '<span class="price-plan-tag">已购</span>' : ''}
       </div>
-      <div class="price-amount">${ctx.ui.money(plan.priceCents)}<small>/ 期</small></div>
+      <div class="price-amount">${ctx.ui.money(plan.priceCents)}<small>/ ${ctx.ui.escape(plan.periodLabel || '期')}</small></div>
       <p class="price-desc">${description}</p>
       <button type="button" class="btn btn-block price-cta ${featured ? 'btn-accent' : 'btn-primary'}"
         data-action="buy" data-plan-id="${ctx.ui.escape(String(plan.id))}" ${state.busy ? 'disabled' : ''}>

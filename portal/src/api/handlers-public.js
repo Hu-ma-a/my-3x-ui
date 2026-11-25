@@ -21,6 +21,10 @@ export async function register(ctx, services) {
   return { user, csrfToken: session.csrfToken };
 }
 
+export function captcha(ctx, services) {
+  return services.auth.issueCaptcha();
+}
+
 export async function login(ctx, services) {
   const body = await ctx.body();
   const { user, session } = services.auth.login({

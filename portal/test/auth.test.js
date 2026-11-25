@@ -18,7 +18,8 @@ describe('认证', () => {
 
   it('注册后自动登录并能访问 /api/me', async () => {
     const client = app.client;
-    const data = expectOk(await client.post('/api/auth/register', { username: 'alice', password: 'password123', email: 'alice@example.com' }));
+    const captcha = await client.captcha();
+    const data = expectOk(await client.post('/api/auth/register', { username: 'alice', password: 'password123', email: 'alice@example.com', captchaId: captcha.captchaId, captchaAnswer: captcha.captchaAnswer }));
     assert.equal(data.user.username, 'alice');
     assert.equal(data.user.role, 'user');
     assert.equal(data.user.balanceCents, 0);
@@ -33,16 +34,64 @@ describe('认证', () => {
     assert.deepEqual(me.recentOrders, []);
   });
 
+  it('注册必须带验证码，且验证码只能使用一次', async () => {
+    const client = app.client;
+    client.clearCookies();
+
+    const captcha = await client.captcha();
+    assert.match(String(captcha.question), /\d+\s*[+-]\s*\d+/);
+
+    expectError(
+      await client.post('/api/auth/register', { username: 'no-captcha', password: 'password123' }),
+      'captcha_required',
+      '缺少验证码',
+    );
+    expectError(
+      await client.post('/api/auth/register', {
+        username: 'wrong-captcha',
+        password: 'password123',
+        captchaId: captcha.captchaId,
+        captchaAnswer: '999',
+      }),
+      'captcha_invalid',
+      '验证码错误',
+    );
+
+    const fresh = await client.captcha();
+    expectOk(
+      await client.post('/api/auth/register', {
+        username: 'captcha-user',
+        password: 'password123',
+        captchaId: fresh.captchaId,
+        captchaAnswer: fresh.captchaAnswer,
+      }),
+      '正确验证码注册',
+    );
+    client.clearCookies();
+    expectError(
+      await client.post('/api/auth/register', {
+        username: 'captcha-reuse',
+        password: 'password123',
+        captchaId: fresh.captchaId,
+        captchaAnswer: fresh.captchaAnswer,
+      }),
+      'captcha_invalid',
+      '验证码不能重复使用',
+    );
+  });
+
   it('用户名重复返回 username_taken', async () => {
     const client = app.client;
     client.clearCookies();
-    expectError(await client.post('/api/auth/register', { username: 'Alice', password: 'password123' }), 'username_taken', '重复用户名');
+    const captcha = await client.captcha();
+    expectError(await client.post('/api/auth/register', { username: 'Alice', password: 'password123', captchaId: captcha.captchaId, captchaAnswer: captcha.captchaAnswer }), 'username_taken', '重复用户名');
   });
 
   it('弱密码返回 validation_error', async () => {
     const client = app.client;
     client.clearCookies();
-    expectError(await client.post('/api/auth/register', { username: 'bobby', password: 'short' }), 'validation_error', '弱密码');
+    const captcha = await client.captcha();
+    expectError(await client.post('/api/auth/register', { username: 'bobby', password: 'short', captchaId: captcha.captchaId, captchaAnswer: captcha.captchaAnswer }), 'validation_error', '弱密码');
   });
 
   it('错误密码返回 invalid_credentials，登录成功后可访问', async () => {

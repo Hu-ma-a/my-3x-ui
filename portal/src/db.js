@@ -57,6 +57,7 @@ CREATE TABLE IF NOT EXISTS plans (
   description TEXT NOT NULL DEFAULT '',
   price_cents INTEGER NOT NULL,
   days INTEGER NOT NULL,
+  period_label TEXT NOT NULL DEFAULT '期',
   traffic_gb REAL NOT NULL DEFAULT 0,
   device_limit INTEGER NOT NULL DEFAULT 0,
   inbound_ids TEXT NOT NULL DEFAULT '',
@@ -161,8 +162,16 @@ export function openStore(config, logger) {
   handle.exec('PRAGMA busy_timeout=5000');
   handle.exec(SCHEMA_SQL);
   const store = new Store(handle, logger);
+  ensureSchemaColumns(store);
   seedStore(store, config, logger);
   return store;
+}
+
+function ensureSchemaColumns(store) {
+  const planColumns = store.all('PRAGMA table_info(plans)').map((column) => column.name);
+  if (!planColumns.includes('period_label')) {
+    store.run("ALTER TABLE plans ADD COLUMN period_label TEXT NOT NULL DEFAULT '期'");
+  }
 }
 
 function seedStore(store, config, logger) {

@@ -9,6 +9,7 @@ export function toPlan(row) {
     description: row.description,
     priceCents: Number(row.price_cents),
     days: Number(row.days),
+    periodLabel: row.period_label || '期',
     trafficGb,
     trafficBytes: Math.round(trafficGb * GB),
     deviceLimit: Number(row.device_limit),
@@ -41,12 +42,13 @@ export function find(store, id) {
 export function create(store, data) {
   const now = Date.now();
   const result = store.run(
-    `INSERT INTO plans(name, description, price_cents, days, traffic_gb, device_limit, inbound_ids, enabled, featured, sort, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO plans(name, description, price_cents, days, period_label, traffic_gb, device_limit, inbound_ids, enabled, featured, sort, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     data.name,
     data.description,
     data.priceCents,
     data.days,
+    data.periodLabel,
     data.trafficGb,
     data.deviceLimit,
     data.inboundIds.join(','),
@@ -61,13 +63,14 @@ export function create(store, data) {
 
 export function update(store, id, data) {
   store.run(
-    `UPDATE plans SET name = ?, description = ?, price_cents = ?, days = ?, traffic_gb = ?, device_limit = ?,
+    `UPDATE plans SET name = ?, description = ?, price_cents = ?, days = ?, period_label = ?, traffic_gb = ?, device_limit = ?,
        inbound_ids = ?, enabled = ?, featured = ?, sort = ?, updated_at = ?
      WHERE id = ?`,
     data.name,
     data.description,
     data.priceCents,
     data.days,
+    data.periodLabel,
     data.trafficGb,
     data.deviceLimit,
     data.inboundIds.join(','),

@@ -10,6 +10,7 @@ export function createRoutes(services) {
     { method: 'GET', path: '/api/config', auth: 'public', handler: wrap(publicHandlers.config) },
     { method: 'GET', path: '/api/plans', auth: 'public', handler: wrap(publicHandlers.plans) },
 
+    { method: 'GET', path: '/api/auth/captcha', auth: 'public', csrf: false, handler: wrap(publicHandlers.captcha) },
     { method: 'POST', path: '/api/auth/register', auth: 'public', csrf: false, handler: wrap(publicHandlers.register) },
     { method: 'POST', path: '/api/auth/login', auth: 'public', csrf: false, handler: wrap(publicHandlers.login) },
     { method: 'POST', path: '/api/auth/logout', auth: 'public', csrf: false, handler: wrap(publicHandlers.logout) },

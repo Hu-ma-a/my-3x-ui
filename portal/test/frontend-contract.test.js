@@ -103,7 +103,7 @@ describe('前端模块与核心 API 契约一致', () => {
     const pageFiles = listJs(PAGES_DIR).concat(listJs(ADMIN_DIR));
     const used = new Set();
     for (const file of pageFiles) {
-      for (const match of fs.readFileSync(file, 'utf8').matchAll(/\b(?:ctx\.ui|ui)\.([a-zA-Z]+)/g)) {
+      for (const match of fs.readFileSync(file, 'utf8').matchAll(/(?<![\w.-])(?:ctx\.ui|ui)\.([a-zA-Z]+)/g)) {
         used.add(match[1]);
       }
     }

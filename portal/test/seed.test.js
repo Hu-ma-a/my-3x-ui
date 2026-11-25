@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { rmSync } from 'node:fs';
+import { DatabaseSync } from 'node:sqlite';
 import { describe, it } from 'node:test';
 
 import { createApp } from '../src/app.js';
@@ -23,6 +24,7 @@ describe('数据库初始化与重启持久化', () => {
       assert.equal(plans.items[0].days, 30);
       assert.equal(plans.items[0].trafficGb, 500);
       assert.equal(plans.items[0].deviceLimit, 3);
+      assert.equal(plans.items[0].periodLabel, '期');
 
       const users = expectOk(await admin.get('/api/admin/users'));
       assert.equal(users.total, 1, '首次启动只创建一个管理员');
@@ -104,6 +106,47 @@ describe('数据库初始化与重启持久化', () => {
       try {
         rmSync(first.dir, { recursive: true, force: true });
         rmSync(second.dir, { recursive: true, force: true });
+      } catch {
+        // 忽略清理失败。
+      }
+    }
+  });
+
+  it('旧数据库启动时自动补上套餐 period_label 列', async () => {
+    const { config, dir } = buildConfig();
+    const legacy = new DatabaseSync(config.dbPath);
+    legacy.exec(`CREATE TABLE plans (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      description TEXT NOT NULL DEFAULT '',
+      price_cents INTEGER NOT NULL,
+      days INTEGER NOT NULL,
+      traffic_gb REAL NOT NULL DEFAULT 0,
+      device_limit INTEGER NOT NULL DEFAULT 0,
+      inbound_ids TEXT NOT NULL DEFAULT '',
+      enabled INTEGER NOT NULL DEFAULT 1,
+      featured INTEGER NOT NULL DEFAULT 0,
+      sort INTEGER NOT NULL DEFAULT 0,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    )`);
+    legacy.exec(`INSERT INTO plans(name, description, price_cents, days, traffic_gb, device_limit, inbound_ids,
+      enabled, featured, sort, created_at, updated_at) VALUES ('旧套餐', '', 1000, 30, 10, 1, '', 1, 0, 0, 1, 1)`);
+    legacy.close();
+
+    const app = createApp({ config, logger: createLogger('error'), xuiMock: new XuiMock() });
+    try {
+      const address = await app.listen(0, '127.0.0.1');
+      const admin = createClient(`http://127.0.0.1:${address.port}`);
+      await admin.adminLogin();
+      const plans = expectOk(await admin.get('/api/admin/plans'));
+      const legacyPlan = plans.items.find((plan) => plan.name === '旧套餐');
+      assert.ok(legacyPlan, '旧套餐应保留');
+      assert.equal(legacyPlan.periodLabel, '期', '迁移后默认计费单位为「期」');
+    } finally {
+      await app.close();
+      try {
+        rmSync(dir, { recursive: true, force: true });
       } catch {
         // 忽略清理失败。
       }

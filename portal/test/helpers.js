@@ -138,8 +138,18 @@ export function createClient(baseUrl) {
       if (!response.json?.ok) throw new Error(`登录失败：${response.text}`);
       return response.json.data;
     },
+    async captcha() {
+      const response = await request('GET', '/api/auth/captcha');
+      if (!response.json?.ok) throw new Error(`获取验证码失败：${response.text}`);
+      const { captchaId, question } = response.json.data;
+      const match = String(question).match(/(\d+)\s*([+-])\s*(\d+)/);
+      if (!match) throw new Error(`无法解析验证码题目：${question}`);
+      const captchaAnswer = String(match[2] === '+' ? Number(match[1]) + Number(match[3]) : Number(match[1]) - Number(match[3]));
+      return { captchaId, question, captchaAnswer };
+    },
     async register(username, password, email = '') {
-      const response = await request('POST', '/api/auth/register', { body: { username, password, email } });
+      const captcha = await this.captcha();
+      const response = await request('POST', '/api/auth/register', { body: { username, password, email, captchaId: captcha.captchaId, captchaAnswer: captcha.captchaAnswer } });
       if (!response.json?.ok) throw new Error(`注册失败：${response.text}`);
       return response.json.data;
     },

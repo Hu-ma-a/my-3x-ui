@@ -59,6 +59,7 @@ export const api = {
   setCsrfToken,
   getCsrfToken,
   config: () => request('GET', '/api/config'),
+  captcha: () => request('GET', '/api/auth/captcha'),
   async register(body) {
     const data = await request('POST', '/api/auth/register', { body });
     setCsrfToken(data.csrfToken);

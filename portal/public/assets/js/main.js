@@ -208,6 +208,7 @@ function renderRouteError(container, err) {
 }
 
 function showFatal(message) {
+  document.body.classList.remove('is-auth');
   appRoot.innerHTML = `<div class="shell"><main class="main"><div class="page" style="text-align: center">
     <p class="eyebrow">服务暂不可用</p>
     <h1 class="display" style="margin-top: 12px">门户暂时无法连接</h1>
@@ -267,6 +268,8 @@ async function handleRoute({ matched, location }) {
 
   currentPath = location.path;
   renderChrome(location.path);
+  const isAuthPage = location.path === '/login' || location.path === '/register';
+  document.body.classList.toggle('is-auth', isAuthPage);
   document.body.dataset.area = location.path.startsWith('/admin') ? 'admin' : 'user';
   // 每次路由换一个全新容器，页面在 root 上绑定的事件监听随旧节点一起丢弃。
   const previousMain = document.getElementById('app-main');

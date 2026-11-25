@@ -92,10 +92,15 @@ describe('管理后台', () => {
     assert.equal(created.name, '月付套餐');
     assert.equal(created.trafficBytes, 100 * 1024 * 1024 * 1024);
     assert.deepEqual(created.inboundIds, [1]);
+    assert.equal(created.periodLabel, '期', '未指定计费单位时默认为「期」');
 
-    const updated = expectOk(await admin.put(`/api/admin/plans/${created.id}`, { priceCents: 2000 }));
+    const updated = expectOk(await admin.put(`/api/admin/plans/${created.id}`, { priceCents: 2000, periodLabel: '月' }));
     assert.equal(updated.priceCents, 2000);
+    assert.equal(updated.periodLabel, '月');
     assert.equal(updated.days, 30, '未提供的字段保持不变');
+
+    const publicPlans = expectOk(await admin.get('/api/plans'));
+    assert.equal(publicPlans.plans.find((plan) => plan.id === created.id).periodLabel, '月');
 
     expectError(await admin.post('/api/admin/plans', { name: '错误套餐', priceCents: 100, days: 0 }), 'validation_error', '无效天数');
 

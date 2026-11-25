@@ -1,3 +1,5 @@
+import { AUTH_ICONS, bindPasswordToggle } from '../core/auth-ui.js';
+
 export const meta = { title: '注册', auth: false, admin: false };
 
 const USERNAME_PATTERN = /^[a-zA-Z0-9_.-]+$/;
@@ -8,20 +10,18 @@ export async function render(root, ctx) {
 
   if (ctx.config && ctx.config.registrationEnabled === false) {
     root.innerHTML = `
-      <div class="auth p-register p-auth">
+      <div class="auth p-register">
         <div class="auth-inner">
-          <section class="card auth-card">
+          <section class="auth-card">
             <div class="auth-head">
-              <span class="brand p-auth-brand">
-                <span class="brand-dot" aria-hidden="true"></span>
-                <span>${ctx.ui.escape(portalName)}</span>
-              </span>
+              <div class="auth-brand">${ctx.ui.escape(portalName)}</div>
+              <span class="auth-brand-line" aria-hidden="true"></span>
               <h1 class="auth-title">注册已关闭</h1>
               <p class="auth-sub">当前门户暂未开放注册，请联系管理员开通账号。</p>
             </div>
             <div class="alert alert-info">注册通道关闭期间，已有账号仍可正常登录。</div>
             <div class="p-auth-actions">
-              <a class="btn btn-primary btn-lg btn-block" href="#/login">返回登录</a>
+              <a class="btn btn-accent btn-lg btn-block auth-submit" href="#/login">返回登录</a>
               <a class="link-btn p-tap" href="#/">返回首页</a>
             </div>
           </section>
@@ -31,47 +31,76 @@ export async function render(root, ctx) {
   }
 
   root.innerHTML = `
-    <div class="auth p-register p-auth">
+    <div class="auth p-register">
       <div class="auth-inner">
-        <section class="card auth-card">
+        <section class="auth-card">
           <div class="auth-head">
-            <span class="brand p-auth-brand">
-              <span class="brand-dot" aria-hidden="true"></span>
-              <span>${ctx.ui.escape(portalName)}</span>
-            </span>
+            <div class="auth-brand">${ctx.ui.escape(portalName)}</div>
+            <span class="auth-brand-line" aria-hidden="true"></span>
             <h1 class="auth-title">创建账号</h1>
             <p class="auth-sub">注册后即可购买套餐、查看订阅。</p>
           </div>
           <form id="p-register-form" novalidate>
-            <div class="field">
+            <div class="field auth-field">
               <label class="field-label" for="p-register-username">用户名</label>
-              <input class="input" id="p-register-username" name="username" autocomplete="username"
-                placeholder="3–32 位字母、数字或 _ . -" maxlength="32" />
+              <div class="auth-input">
+                <span class="auth-input-icon">${AUTH_ICONS.user}</span>
+                <input class="input" id="p-register-username" name="username" autocomplete="username"
+                  placeholder="3–32 位字母、数字或 _ . -" maxlength="32" />
+              </div>
               <div class="error-text" data-error="username"></div>
             </div>
-            <div class="field">
+            <div class="field auth-field">
               <label class="field-label" for="p-register-email">邮箱 <span class="optional">（选填）</span></label>
-              <input class="input" id="p-register-email" name="email" type="email" autocomplete="email"
-                placeholder="用于找回账号，可留空" maxlength="254" />
+              <div class="auth-input">
+                <span class="auth-input-icon">${AUTH_ICONS.mail}</span>
+                <input class="input" id="p-register-email" name="email" type="email" autocomplete="email"
+                  placeholder="用于找回账号，可留空" maxlength="254" />
+              </div>
               <div class="error-text" data-error="email"></div>
             </div>
-            <div class="field">
+            <div class="field auth-field">
               <label class="field-label" for="p-register-password">密码</label>
-              <input class="input" id="p-register-password" name="password" type="password"
-                autocomplete="new-password" placeholder="至少 8 位字符" maxlength="72" />
+              <div class="auth-input">
+                <span class="auth-input-icon">${AUTH_ICONS.lock}</span>
+                <input class="input" id="p-register-password" name="password" type="password"
+                  autocomplete="new-password" placeholder="至少 8 位字符" maxlength="72" />
+                <button type="button" class="auth-eye" data-eye="p-register-password" aria-label="显示密码">
+                  ${AUTH_ICONS.eye}${AUTH_ICONS.eyeOff}
+                </button>
+              </div>
               <div class="error-text" data-error="password"></div>
             </div>
-            <div class="field">
+            <div class="field auth-field">
               <label class="field-label" for="p-register-confirm">确认密码</label>
-              <input class="input" id="p-register-confirm" name="confirmPassword" type="password"
-                autocomplete="new-password" placeholder="请再次输入密码" maxlength="72" />
+              <div class="auth-input">
+                <span class="auth-input-icon">${AUTH_ICONS.lock}</span>
+                <input class="input" id="p-register-confirm" name="confirmPassword" type="password"
+                  autocomplete="new-password" placeholder="请再次输入密码" maxlength="72" />
+                <button type="button" class="auth-eye" data-eye="p-register-confirm" aria-label="显示密码">
+                  ${AUTH_ICONS.eye}${AUTH_ICONS.eyeOff}
+                </button>
+              </div>
               <div class="error-text" data-error="confirmPassword"></div>
             </div>
+            <div class="field auth-field">
+              <label class="field-label" for="p-register-captcha">验证码</label>
+              <div class="auth-captcha">
+                <span class="auth-captcha-question" id="p-register-question">加载中…</span>
+                <input class="input auth-captcha-input" id="p-register-captcha" name="captchaAnswer"
+                  inputmode="numeric" autocomplete="off" maxlength="3" placeholder="结果" />
+                <button type="button" class="auth-captcha-refresh" data-captcha-refresh aria-label="刷新验证码">
+                  ${AUTH_ICONS.refresh}
+                </button>
+              </div>
+              <div class="error-text" data-error="captcha"></div>
+            </div>
             <div class="error-text" id="p-register-error" role="alert"></div>
-            <button class="btn btn-accent btn-lg btn-block" id="p-register-submit" type="submit">注册</button>
+            <button class="btn btn-accent btn-lg btn-block auth-submit" id="p-register-submit" type="submit">注册</button>
           </form>
           <div class="auth-foot p-auth-links">
             <a class="link-btn p-tap" href="#/login">已有账号？直接登录</a>
+            <span class="auth-foot-dot" aria-hidden="true">·</span>
             <a class="link-btn p-tap" href="#/">返回首页</a>
           </div>
         </section>
@@ -84,7 +113,32 @@ export async function render(root, ctx) {
   const emailInput = root.querySelector('#p-register-email');
   const passwordInput = root.querySelector('#p-register-password');
   const confirmInput = root.querySelector('#p-register-confirm');
+  const captchaInput = root.querySelector('#p-register-captcha');
+  const questionEl = root.querySelector('#p-register-question');
+  const refreshBtn = root.querySelector('[data-captcha-refresh]');
   const formError = root.querySelector('#p-register-error');
+
+  bindPasswordToggle(root.querySelector('[data-eye="p-register-password"]'), passwordInput);
+  bindPasswordToggle(root.querySelector('[data-eye="p-register-confirm"]'), confirmInput);
+
+  let captchaId = '';
+
+  async function refreshCaptcha() {
+    captchaId = '';
+    captchaInput.value = '';
+    questionEl.textContent = '加载中…';
+    try {
+      const data = await ctx.api.captcha();
+      captchaId = data.captchaId;
+      questionEl.textContent = data.question;
+    } catch {
+      questionEl.textContent = '加载失败，请点刷新';
+    }
+  }
+
+  refreshBtn.addEventListener('click', () => {
+    refreshCaptcha();
+  });
 
   function setFieldError(name, message) {
     const el = root.querySelector(`[data-error="${name}"]`);
@@ -123,6 +177,11 @@ export async function render(root, ctx) {
     if (values.confirmPassword !== values.password) {
       errors.confirmPassword = '两次输入的密码不一致';
     }
+    if (!values.captchaAnswer) {
+      errors.captcha = '请输入验证码计算结果';
+    } else if (!captchaId) {
+      errors.captcha = '验证码未加载，请点右侧刷新';
+    }
     return errors;
   }
 
@@ -134,6 +193,7 @@ export async function render(root, ctx) {
       email: emailInput.value.trim(),
       password: passwordInput.value,
       confirmPassword: confirmInput.value,
+      captchaAnswer: captchaInput.value.trim(),
     };
     const errors = validate(values);
     const errorNames = Object.keys(errors);
@@ -144,7 +204,12 @@ export async function render(root, ctx) {
 
     setLoading(true);
     try {
-      const payload = { username: values.username, password: values.password };
+      const payload = {
+        username: values.username,
+        password: values.password,
+        captchaId,
+        captchaAnswer: values.captchaAnswer,
+      };
       if (values.email) payload.email = values.email;
       const data = await ctx.api.register(payload);
       try {
@@ -161,6 +226,8 @@ export async function render(root, ctx) {
         setFieldError('email', '该邮箱已被注册');
       } else if (err && err.code === 'registration_closed') {
         formError.textContent = '当前门户暂未开放注册';
+      } else if (err && (err.code === 'captcha_required' || err.code === 'captcha_invalid')) {
+        setFieldError('captcha', err.message || '验证码错误，请重试');
       } else if (err && err.code === 'validation_error' && err.message) {
         if (err.message.includes('用户名')) setFieldError('username', err.message);
         else if (err.message.includes('邮箱')) setFieldError('email', err.message);
@@ -170,6 +237,9 @@ export async function render(root, ctx) {
         formError.textContent = (err && err.message) || '注册失败，请稍后重试';
       }
       setLoading(false);
+      refreshCaptcha();
     }
   });
+
+  refreshCaptcha();
 }

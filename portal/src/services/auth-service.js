@@ -5,10 +5,12 @@ import { hashPassword, verifyPassword } from '../auth/password.js';
 import { createLimiter } from '../http/security.js';
 import { AppError, errors } from '../util/errors.js';
 import { email as validateEmail, password as validatePassword, username as validateUsername } from '../util/validate.js';
-import { sha256 } from '../util/ids.js';
+import { randomToken, sha256 } from '../util/ids.js';
 
 const LOGIN_WINDOW_MS = 15 * 60 * 1000;
 const LOGIN_MAX_ATTEMPTS = 5;
+const CAPTCHA_TTL_MS = 5 * 60 * 1000;
+const CAPTCHA_MAX_ATTEMPTS = 5;
 
 export class AuthService {
   constructor({ store, settings, sessionTtlMs }) {
@@ -16,12 +18,51 @@ export class AuthService {
     this.settings = settings;
     this.sessionTtlMs = sessionTtlMs;
     this.limiter = createLimiter({ windowMs: LOGIN_WINDOW_MS, max: LOGIN_MAX_ATTEMPTS });
+    this.captchas = new Map();
+  }
+
+  issueCaptcha() {
+    const now = Date.now();
+    for (const [id, item] of this.captchas) {
+      if (item.expiresAt <= now) this.captchas.delete(id);
+    }
+    const left = 1 + Math.floor(Math.random() * 9);
+    const right = 1 + Math.floor(Math.random() * 9);
+    const plus = Math.random() < 0.5;
+    const big = Math.max(left, right);
+    const small = Math.min(left, right);
+    const question = plus ? `${left} + ${right} = ?` : `${big} - ${small} = ?`;
+    const answer = plus ? String(left + right) : String(big - small);
+    const captchaId = randomToken(12);
+    this.captchas.set(captchaId, { answer, expiresAt: now + CAPTCHA_TTL_MS, attempts: 0 });
+    return { captchaId, question, expiresIn: Math.floor(CAPTCHA_TTL_MS / 1000) };
+  }
+
+  verifyCaptcha(captchaId, captchaAnswer) {
+    if (!captchaId || captchaAnswer === undefined || captchaAnswer === null || String(captchaAnswer).trim() === '') {
+      throw new AppError('captcha_required', '请输入验证码', 400);
+    }
+    const item = this.captchas.get(String(captchaId));
+    if (!item || item.expiresAt <= Date.now()) {
+      this.captchas.delete(String(captchaId));
+      throw new AppError('captcha_invalid', '验证码已过期，请刷新后重试', 400);
+    }
+    item.attempts += 1;
+    if (item.attempts > CAPTCHA_MAX_ATTEMPTS) {
+      this.captchas.delete(String(captchaId));
+      throw new AppError('captcha_invalid', '验证码错误次数过多，请刷新后重试', 400);
+    }
+    if (String(captchaAnswer).trim() !== item.answer) {
+      throw new AppError('captcha_invalid', '验证码错误，请重试', 400);
+    }
+    this.captchas.delete(String(captchaId));
   }
 
   register({ body, ip, userAgent }) {
     if (!this.settings.portalConfig().registrationEnabled) {
       throw errors.badRequest('registration_closed', '当前未开放注册');
     }
+    this.verifyCaptcha(body?.captchaId, body?.captchaAnswer);
     const username = validateUsername(body);
     const password = validatePassword(body);
     const email = validateEmail(body);
