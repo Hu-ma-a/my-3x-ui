@@ -36,7 +36,7 @@ const KEYS = {
   'portal.manualPayInstructions': { label: '人工转账说明', kind: 'textarea' },
   'portal.minRechargeCents': { label: '最低充值金额', kind: 'money', min: 0.01 },
   'portal.maxRechargeCents': { label: '最高充值金额', kind: 'money', min: 0.01 },
-  'portal.defaultInboundIds': { label: '默认入站 ID（逗号分隔）', kind: 'text', hint: '套餐未绑定入站时使用；留空则取面板第一个入站' },
+  'portal.defaultInboundIds': { label: '默认入站 ID（逗号分隔）', kind: 'text', hint: '套餐未绑定入站时使用；留空则关联面板全部入站' },
   'portal.subscriptionBaseUrl': { label: '订阅基地址', kind: 'text', hint: '留空时自动从面板设置推导' },
   'xui.url': { label: '面板地址', kind: 'text', required: true, hint: '例如 http://127.0.0.1:2053' },
   'xui.basePath': { label: 'basePath', kind: 'text', hint: '通常为 /' },
@@ -673,6 +673,7 @@ export async function render(root, ctx) {
       const meta = [];
       if (result.panelVersion) meta.push(`面板版本 ${esc(result.panelVersion)}`);
       meta.push(`入站 ${esc(result.inboundCount != null ? result.inboundCount : inbounds.length)} 个`);
+      if (result.apiLatencyMs != null) meta.push(`API 延迟 ${esc(result.apiLatencyMs)} ms`);
       if (result.clientCount != null) meta.push(`客户端 ${esc(result.clientCount)} 个`);
       const sub = result.subscription || {};
       if (sub.subEnable !== undefined) meta.push(`订阅功能${sub.subEnable ? '已启用' : '未启用'}`);
@@ -684,11 +685,13 @@ export async function render(root, ctx) {
         <div class="row-side"><span class="badge badge-success">已连接</span></div>
       </div>`];
       for (const inbound of inbounds.slice(0, 10)) {
+        const endpoint = inbound.endpoint ? ` · ${esc(inbound.endpoint)}` : '';
         rows.push(`<div class="row-item">
           <div class="row-main">
             <div class="row-title">#${esc(inbound.id)} ${esc(inbound.remark || '未命名入站')}</div>
-            <div class="row-sub">${esc(inbound.protocol || '未知协议')}</div>
+            <div class="row-sub">${esc(inbound.protocol || '未知协议')}${endpoint}</div>
           </div>
+          <div class="row-side">${ctx.ui.latencyBadge(inbound.latencyMs, inbound.latencyNote)}</div>
         </div>`);
       }
       if (inbounds.length > 10) {

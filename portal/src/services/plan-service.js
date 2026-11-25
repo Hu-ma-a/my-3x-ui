@@ -62,6 +62,17 @@ export class PlanService {
   }
 }
 
+function normalizeFeatures(source, current) {
+  if (source.features === undefined) return current ? current.features || [] : [];
+  const raw = Array.isArray(source.features) ? source.features : String(source.features).split(/\r?\n/);
+  const list = raw.map((item) => String(item).trim()).filter(Boolean);
+  if (list.length > 12) throw errors.validation('套餐特性最多 12 条');
+  for (const item of list) {
+    if ([...item].length > 80) throw errors.validation('每条套餐特性不能超过 80 个字符');
+  }
+  return list;
+}
+
 function parsePlanBody(body, current) {
   const source = body || {};
   const name = str(source, 'name', { label: '套餐名称', min: 1, max: 64, required: !current }).trim();
@@ -71,6 +82,7 @@ function parsePlanBody(body, current) {
   const periodLabel = source.periodLabel === undefined && current
     ? current.periodLabel
     : (optionalStr(source, 'periodLabel', { label: '计费单位', max: 8 }) || (current ? current.periodLabel : '期'));
+  const features = normalizeFeatures(source, current);
   const trafficGb = source.trafficGb === undefined && current ? current.trafficGb : number(source, 'trafficGb', { label: '流量(GB)', min: 0, max: 1024 * 1024 });
   const deviceLimit = source.deviceLimit === undefined && current ? current.deviceLimit : int(source, 'deviceLimit', { label: '设备数', min: 0, max: 1000 });
   const inboundIds = source.inboundIds === undefined && current ? current.inboundIds : intList(source, 'inboundIds', { label: '绑定入站' });
@@ -83,6 +95,7 @@ function parsePlanBody(body, current) {
     priceCents,
     days,
     periodLabel,
+    features,
     trafficGb,
     deviceLimit,
     inboundIds,

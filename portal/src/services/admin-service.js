@@ -1,10 +1,43 @@
 import * as usersModel from '../models/users.js';
 import * as ordersModel from '../models/orders.js';
 import * as sessionModel from '../models/sessions.js';
+import net from 'node:net';
 import { hashPassword } from '../auth/password.js';
 import { AppError, errors } from '../util/errors.js';
 import { dayStartMs, monthStartMs } from '../util/time.js';
 import { int } from '../util/validate.js';
+
+const UDP_PROTOCOLS = new Set(['hysteria', 'hysteria2', 'tuic', 'wireguard', 'mtproto']);
+
+export function measureTcpLatency(host, port, timeoutMs = 1500) {
+  return new Promise((resolve) => {
+    if (!host || !Number.isInteger(port) || port <= 0) {
+      resolve(null);
+      return;
+    }
+    const startedAt = performance.now();
+    const socket = net.connect({ host, port });
+    let settled = false;
+    const finish = (value) => {
+      if (settled) return;
+      settled = true;
+      socket.destroy();
+      resolve(value);
+    };
+    socket.setTimeout(timeoutMs);
+    socket.once('connect', () => finish(Math.max(1, Math.round(performance.now() - startedAt))));
+    socket.once('timeout', () => finish(null));
+    socket.once('error', () => finish(null));
+  });
+}
+
+function panelHostFromUrl(rawUrl) {
+  try {
+    return new URL(String(rawUrl || '')).hostname;
+  } catch {
+    return '';
+  }
+}
 
 export class AdminService {
   constructor({ store, settings, planService, orderService, subscription, authService, xui, logger }) {
@@ -159,6 +192,20 @@ export class AdminService {
     return { ok: true };
   }
 
+  deleteUser(actorId, id) {
+    const row = usersModel.findById(this.store, id);
+    if (!row) throw errors.notFound('user_not_found', '用户不存在');
+    if (row.role === 'admin') throw errors.validation('管理员账号请到「管理员」页面操作');
+    if (Number(id) === Number(actorId)) throw errors.validation('不能删除当前登录账号');
+    this.store.tx(() => {
+      sessionModel.removeByUser(this.store, id);
+      ordersModel.removeForUser(this.store, id);
+      usersModel.remove(this.store, id);
+    });
+    this.logger?.info(`管理员删除用户 ${row.username}（ID ${id}）`);
+    return { ok: true };
+  }
+
   listOrders({ kind = '', status = '', query = '', page = 1, pageSize = 20 } = {}) {
     const total = ordersModel.countAdmin(this.store, { kind, status, query });
     const rows = ordersModel.listAdmin(this.store, { kind, status, query, limit: pageSize, offset: (page - 1) * pageSize });
@@ -205,17 +252,37 @@ export class AdminService {
   async testXui() {
     try {
       const client = this.xui.client();
+      const startedAt = performance.now();
       const inbounds = (await client.listInbounds()) || [];
+      const apiLatencyMs = Math.max(1, Math.round(performance.now() - startedAt));
       const panel = await client.panelSettings().catch(() => ({}));
+      const panelHost = panelHostFromUrl(this.settings.xuiConfig().url);
+      const items = await Promise.all(
+        inbounds.map(async (inbound) => {
+          const protocol = String(inbound.protocol || '').toLowerCase();
+          const listen = String(inbound.listen || '').trim();
+          const port = Number(inbound.port);
+          const host = listen && !['0.0.0.0', '::', '::0'].includes(listen) && listen !== '127.0.0.1'
+            ? listen
+            : panelHost;
+          const udp = UDP_PROTOCOLS.has(protocol);
+          const latencyMs = udp ? null : await measureTcpLatency(host, port);
+          return {
+            id: Number(inbound.id),
+            remark: inbound.remark || '',
+            protocol: inbound.protocol || '',
+            enable: inbound.enable !== false,
+            endpoint: host && port > 0 ? `${host}:${port}` : '',
+            latencyMs,
+            latencyNote: udp ? 'udp' : latencyMs == null ? 'unreachable' : 'tcp',
+          };
+        }),
+      );
       return {
         ok: true,
+        apiLatencyMs,
         inboundCount: inbounds.length,
-        inbounds: inbounds.map((inbound) => ({
-          id: Number(inbound.id),
-          remark: inbound.remark || '',
-          protocol: inbound.protocol || '',
-          enable: inbound.enable !== false,
-        })),
+        inbounds: items,
         subscription: {
           subEnable: Boolean(panel?.subEnable),
           subPath: panel?.subPath || '',

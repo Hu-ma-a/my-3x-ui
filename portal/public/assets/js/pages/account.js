@@ -1,3 +1,5 @@
+import { AUTH_ICONS, bindPasswordToggle } from '../core/auth-ui.js';
+
 export const meta = { title: '账号设置', auth: true, admin: false };
 
 export async function render(root, ctx) {
@@ -65,20 +67,38 @@ export async function render(root, ctx) {
               <form id="p-account-password-form" class="p-account-form" novalidate>
                 <div class="field">
                   <label class="field-label" for="p-account-current">当前密码</label>
-                  <input class="input" id="p-account-current" type="password" autocomplete="current-password"
-                    placeholder="请输入当前密码" maxlength="72" />
+                  <div class="auth-input">
+                    <span class="auth-input-icon">${AUTH_ICONS.lock}</span>
+                    <input class="input" id="p-account-current" type="password" autocomplete="current-password"
+                      placeholder="请输入当前密码" maxlength="72" />
+                    <button type="button" class="auth-eye" data-eye="p-account-current" aria-label="显示密码">
+                      ${AUTH_ICONS.eye}${AUTH_ICONS.eyeOff}
+                    </button>
+                  </div>
                   <div class="error-text" data-error="currentPassword"></div>
                 </div>
                 <div class="field">
                   <label class="field-label" for="p-account-new">新密码</label>
-                  <input class="input" id="p-account-new" type="password" autocomplete="new-password"
-                    placeholder="8–72 位字符" maxlength="72" />
+                  <div class="auth-input">
+                    <span class="auth-input-icon">${AUTH_ICONS.lock}</span>
+                    <input class="input" id="p-account-new" type="password" autocomplete="new-password"
+                      placeholder="8–72 位字符" maxlength="72" />
+                    <button type="button" class="auth-eye" data-eye="p-account-new" aria-label="显示密码">
+                      ${AUTH_ICONS.eye}${AUTH_ICONS.eyeOff}
+                    </button>
+                  </div>
                   <div class="error-text" data-error="newPassword"></div>
                 </div>
                 <div class="field">
                   <label class="field-label" for="p-account-confirm">确认新密码</label>
-                  <input class="input" id="p-account-confirm" type="password" autocomplete="new-password"
-                    placeholder="请再次输入新密码" maxlength="72" />
+                  <div class="auth-input">
+                    <span class="auth-input-icon">${AUTH_ICONS.lock}</span>
+                    <input class="input" id="p-account-confirm" type="password" autocomplete="new-password"
+                      placeholder="请再次输入新密码" maxlength="72" />
+                    <button type="button" class="auth-eye" data-eye="p-account-confirm" aria-label="显示密码">
+                      ${AUTH_ICONS.eye}${AUTH_ICONS.eyeOff}
+                    </button>
+                  </div>
                   <div class="error-text" data-error="confirmPassword"></div>
                 </div>
                 <div class="error-text" id="p-account-error" role="alert"></div>
@@ -107,6 +127,10 @@ export async function render(root, ctx) {
     const confirmInput = root.querySelector('#p-account-confirm');
     const formError = root.querySelector('#p-account-error');
     const logoutBtn = root.querySelector('#p-logout-btn');
+
+    bindPasswordToggle(root.querySelector('[data-eye="p-account-current"]'), currentInput);
+    bindPasswordToggle(root.querySelector('[data-eye="p-account-new"]'), newInput);
+    bindPasswordToggle(root.querySelector('[data-eye="p-account-confirm"]'), confirmInput);
 
     function setError(name, message) {
       const el = root.querySelector(`[data-error="${name}"]`);
@@ -150,8 +174,15 @@ export async function render(root, ctx) {
       setLoading(true);
       try {
         await ctx.api.changePassword({ currentPassword, newPassword });
-        ctx.toast('密码修改成功，其他设备已退出登录', 'success');
+        ctx.toast('密码修改成功，请使用新密码重新登录', 'success');
         form.reset();
+        try {
+          await ctx.api.logout();
+        } catch {
+          // 会话已失效时忽略退出请求错误。
+        }
+        if (ctx.store && typeof ctx.store.clear === 'function') ctx.store.clear();
+        ctx.navigate('/login');
       } catch (err) {
         if (err && err.code === 'unauthorized') {
           ctx.navigate('/login');

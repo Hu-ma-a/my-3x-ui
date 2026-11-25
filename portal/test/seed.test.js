@@ -25,6 +25,7 @@ describe('数据库初始化与重启持久化', () => {
       assert.equal(plans.items[0].trafficGb, 500);
       assert.equal(plans.items[0].deviceLimit, 3);
       assert.equal(plans.items[0].periodLabel, '期');
+      assert.deepEqual(plans.items[0].features, []);
 
       const users = expectOk(await admin.get('/api/admin/users'));
       assert.equal(users.total, 1, '首次启动只创建一个管理员');
@@ -143,6 +144,7 @@ describe('数据库初始化与重启持久化', () => {
       const legacyPlan = plans.items.find((plan) => plan.name === '旧套餐');
       assert.ok(legacyPlan, '旧套餐应保留');
       assert.equal(legacyPlan.periodLabel, '期', '迁移后默认计费单位为「期」');
+      assert.deepEqual(legacyPlan.features, [], '迁移后默认没有自定义特性');
     } finally {
       await app.close();
       try {

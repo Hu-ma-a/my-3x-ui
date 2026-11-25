@@ -26,7 +26,7 @@ describe('套餐购买与 3x-ui 自动开通', () => {
     await app.close();
   });
 
-  const clientEmail = () => `u${userId}@portal`;
+  const clientEmail = () => 'purchase-user';
 
   it('首次购买：在 3x-ui 新增客户端，默认 30 天 / 500GB / 3 设备', async () => {
     const startedAt = Date.now();
@@ -89,7 +89,7 @@ describe('套餐购买与 3x-ui 自动开通', () => {
     xui.setOffline(false);
     const retried = expectOk(await admin.post(`/api/admin/orders/${failed.order.id}/retry-provision`, {}), '重试开通');
     assert.equal(retried.status, 'provisioned');
-    const record = xui.clients.get(`u${registered.user.id}@portal`);
+    const record = xui.clients.get('retry-user');
     assert.ok(record);
     assert.ok(Math.abs(record.expiryTime - (Date.now() + 30 * DAY_MS)) < 10000);
     assert.equal(record.totalGB, 500 * GB);
@@ -98,12 +98,46 @@ describe('套餐购买与 3x-ui 自动开通', () => {
     app.store.run("UPDATE orders SET status = 'sync_pending', provisioned_at = NULL WHERE id = ?", failed.order.id);
     const again = expectOk(await admin.post(`/api/admin/orders/${failed.order.id}/retry-provision`, {}), '再次重试');
     assert.equal(again.status, 'provisioned');
-    const afterRecord = xui.clients.get(`u${registered.user.id}@portal`);
+    const afterRecord = xui.clients.get('retry-user');
     assert.equal(afterRecord.expiryTime, record.expiryTime, '重试不得重复增加天数');
     assert.equal(afterRecord.totalGB, record.totalGB, '重试不得重复累加流量');
     assert.equal(afterRecord.limitHwid, record.limitHwid, '重试不得重复累加设备数');
 
     expectError(await admin.post(`/api/admin/orders/${failed.order.id}/retry-provision`, {}), 'invalid_status', '已开通订单不可重试');
+  });
+
+  it('新客户端名称优先使用用户邮箱，其次用户名', async () => {
+    const namedUser = createClient(app.baseUrl);
+    const registered = await namedUser.register('named-user', 'password123', 'named-user@example.com');
+    expectOk(await admin.post(`/api/admin/users/${registered.user.id}/balance`, { deltaCents: 100000 }), '充值余额');
+    expectOk(await namedUser.post('/api/me/purchase', { planId: 1, method: 'balance' }), '购买套餐');
+    assert.ok(xui.clients.get('named-user@example.com'), '有邮箱时客户端名称使用邮箱');
+
+    const plainUser = createClient(app.baseUrl);
+    const plain = await plainUser.register('plain-user', 'password123');
+    expectOk(await admin.post(`/api/admin/users/${plain.user.id}/balance`, { deltaCents: 100000 }), '充值余额');
+    expectOk(await plainUser.post('/api/me/purchase', { planId: 1, method: 'balance' }), '购买套餐');
+    assert.ok(xui.clients.get('plain-user'), '无邮箱时客户端名称使用用户名');
+  });
+
+  it('套餐未绑定入站且未配置默认入站时，默认关联全部入站', async () => {
+    const originalInbounds = xui.inbounds;
+    xui.inbounds = [
+      { id: 11, remark: '入站A', protocol: 'vless', port: 443, enable: true },
+      { id: 12, remark: '入站B', protocol: 'vless', port: 8443, enable: true },
+      { id: 13, remark: '已禁用', protocol: 'vless', port: 9443, enable: false },
+    ];
+    try {
+      const allUser = createClient(app.baseUrl);
+      const registered = await allUser.register('all-inbound-user', 'password123');
+      expectOk(await admin.post(`/api/admin/users/${registered.user.id}/balance`, { deltaCents: 100000 }), '充值余额');
+      expectOk(await allUser.post('/api/me/purchase', { planId: 1, method: 'balance' }), '购买套餐');
+      const record = xui.clients.get('all-inbound-user');
+      assert.ok(record);
+      assert.deepEqual([...record.inboundIds].sort((a, b) => a - b), [11, 12], '应关联全部启用的入站');
+    } finally {
+      xui.inbounds = originalInbounds;
+    }
   });
 
   it('订单列表包含购买记录', async () => {

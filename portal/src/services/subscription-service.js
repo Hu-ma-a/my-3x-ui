@@ -17,7 +17,11 @@ export class SubscriptionService {
   }
 
   clientEmailFor(user) {
-    return user.clientEmail || `u${user.id}@portal`;
+    // 已有客户端保持原 email，避免改名导致旧客户端失联、套餐/订阅数据丢失。
+    if (user.clientEmail) return user.clientEmail;
+    const preferred = String(user.email || user.username || '').trim();
+    if (preferred) return preferred;
+    return `u${user.id}@portal`;
   }
 
   async resolveInboundIds(plan) {
@@ -25,11 +29,13 @@ export class SubscriptionService {
     const defaults = this.settings.portalConfig().defaultInboundIds;
     if (defaults.length) return defaults;
     const inbounds = (await this.xui.client().listInbounds()) || [];
-    const first = inbounds.find((item) => item.enable !== false) || inbounds[0];
-    if (!first) {
+    const enabled = inbounds.filter((item) => item.enable !== false);
+    const usable = enabled.length ? enabled : inbounds;
+    if (!usable.length) {
       throw errors.badRequest('no_inbound', '面板中没有任何可用入站，请先在面板创建入站或配置默认入站');
     }
-    return [Number(first.id)];
+    // 未指定套餐/默认入站时，客户端默认关联全部入站。
+    return usable.map((item) => Number(item.id));
   }
 
   planTrafficBytes(plan) {

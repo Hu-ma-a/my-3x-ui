@@ -116,7 +116,7 @@ try {
   kv('套餐', `${plan.name}：${plan.days} 天 / ${plan.trafficGb}GB / ${plan.deviceLimit} 设备 / ¥${(plan.priceCents / 100).toFixed(2)}`);
   const first = await user.post('/api/me/purchase', { planId: plan.id, method: 'balance' });
   kv('订单状态', first.order.status);
-  const clientEmail = `u${registered.user.id}@portal`;
+  const clientEmail = registered.user.email || registered.user.username;
   const created = xui.clients.get(clientEmail);
   kv('3x-ui 客户端', clientEmail);
   kv('到期时间', new Date(created.expiryTime).toISOString().slice(0, 10));

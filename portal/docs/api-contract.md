@@ -208,6 +208,11 @@
 请求：`{"amountCents":10000,"provider":"epay"|"mock"|"manual"}`
 成功结构同 purchase（`order.kind = "recharge"`）。
 
+### POST /api/me/redeem
+请求：`{"code":"P-XXXX-XXXX-XXXX"}`
+成功：`data = {"ok":true,"amountCents":1000,"balanceCents":5000,"orderNo":"R…"}`，余额立即到账并生成一笔 `provider=redeem` 的充值订单。
+失败码：`redeem_invalid`（无效/已用/已撤销）、`redeem_expired`（已过期）、`validation_error`。
+
 ### POST /api/me/payments/:orderNo/mock-complete
 仅 `provider=mock` 且订单 `pending` 时可用；模拟支付成功并走真实入账/开通流程。
 → `data = Order`（最终态）。失败码：`not_found`、`invalid_provider`、`invalid_status`。
@@ -240,10 +245,11 @@
 - `POST /api/admin/users/:id/status` `{"status":"active"|"disabled"}` → `data=User`（禁用同时踢下线）
 - `POST /api/admin/users/:id/balance` `{"deltaCents":1000,"note":"补偿"}` → `data=User`
 - `POST /api/admin/users/:id/reset-password` `{"newPassword":"…"}` → `data={"ok":true}`
+- `DELETE /api/admin/users/:id` → 永久删除用户，同时删除其订单与会话；管理员账号不可删除 → `data={"ok":true}`
 
 ### 套餐管理
 - `GET /api/admin/plans` → `{"items":[Plan...]}`（含 disabled）
-- `POST /api/admin/plans` 请求体：`{"name","description","priceCents","days","periodLabel","trafficGb","deviceLimit","inboundIds","enabled","featured","sort"}` → `data=Plan`（`periodLabel` 为价格后显示的单位，默认「期」，可改月/年等）
+- `POST /api/admin/plans` 请求体：`{"name","description","features","priceCents","days","periodLabel","trafficGb","deviceLimit","inboundIds","enabled","featured","sort"}` → `data=Plan`（`features` 为价格卡片下的特性文案数组，最多 12 条；`periodLabel` 为价格后显示的单位，默认「期」，可改月/年等）
 - `PUT /api/admin/plans/:id` 同上（部分字段可省，缺省保持不变）→ `data=Plan`
 - `DELETE /api/admin/plans/:id` → `data={"ok":true}`；有订单引用时仅置为 disabled 并返回 `data={"ok":true,"disabled":true}`
 
@@ -255,6 +261,11 @@
 - `POST /api/admin/orders/:id/retry-provision` → 仅 `sync_pending`/`paid` 可用，重跑 3x-ui 开通 → `data=Order`
 - `POST /api/admin/orders/:id/cancel` → 仅 `pending` 可用 → `data=Order`
 - `GET /api/admin/recharges?status=&query=&page=&pageSize=` → 等价 `kind=recharge`。
+
+### 充值码
+- `GET /api/admin/redeem-keys?status=unused|used|revoked&query=&batch=&page=&pageSize=` → `{"items":[RedeemKey...],"total":…}`（列表只返回掩码 `maskedCode`）
+- `POST /api/admin/redeem-keys` 请求体：`{"amountCents":1000,"count":10,"days":0,"note":"活动"}` → `data={"batch":"B…","expiresAt":null,"items":[{"id","code","amountCents"}]}`（完整 `code` 只在生成时返回）
+- `POST /api/admin/redeem-keys/:id/revoke` → 仅未使用的充值码可撤销 → `data={"ok":true}`
 
 ### 设置
 - `GET /api/admin/settings` →
@@ -304,7 +315,7 @@
    - `totalGB = plan.trafficGb * 1024^3`（字节；默认套餐 30 天 / 500GB）
    - `limitHwid = plan.deviceLimit`（可用客户端/设备数量）
    - `subId`：自动生成并写入
-   - `inboundIds`：套餐绑定的入站；为空则用设置 `portal.defaultInboundIds`；再为空则取 3x-ui 第一个入站
+   - `inboundIds`：套餐绑定的入站；为空则用设置 `portal.defaultInboundIds`；再为空则关联面板全部入站
 2. 已有客户端 → **续期**：
    - `expiryTime = max(now, 当前到期) + plan.days * 86400000`
    - `totalGB = 当前额度 + plan.trafficGb * 1024^3`（当前为 0 表示不限，保持 0）

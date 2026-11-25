@@ -199,6 +199,7 @@ export async function render(root, ctx) {
     const p = plan || {};
     const priceYuan = p.priceCents != null ? String(Number(p.priceCents) / 100) : '';
     const inboundIds = Array.isArray(p.inboundIds) ? p.inboundIds.join(',') : '';
+    const featuresText = Array.isArray(p.features) ? p.features.join('\n') : '';
     return `<div class="modal" role="dialog" aria-modal="true" aria-label="${plan ? '编辑套餐' : '新建套餐'}">
       <form data-plan-form novalidate>
         <div class="modal-head row-between">
@@ -246,12 +247,18 @@ export async function render(root, ctx) {
             <div class="field a-span-2">
               <label class="field-label" for="a-plan-inbounds">绑定入站 ID（逗号分隔）</label>
               <input id="a-plan-inbounds" class="input" name="inboundIds" type="text" placeholder="如：1,2" value="${esc(inboundIds)}">
-              <p class="hint">留空则使用「系统设置 → 默认入站 ID」；仍未配置时使用面板第一个入站。</p>
+              <p class="hint">留空则使用「系统设置 → 默认入站 ID」；仍未配置时默认关联面板全部入站。</p>
               <p class="error-text hidden" data-error-for="inbounds"></p>
             </div>
             <div class="field a-span-2">
               <label class="field-label" for="a-plan-desc">描述</label>
               <textarea id="a-plan-desc" class="textarea" name="description" rows="2" maxlength="200" placeholder="展示给用户的套餐说明，可选">${esc(p.description || '')}</textarea>
+            </div>
+            <div class="field a-span-2">
+              <label class="field-label" for="a-plan-features">套餐特性（每行一条，最多 12 条）</label>
+              <textarea id="a-plan-features" class="textarea" name="features" rows="5" placeholder="500 GB 流量额度&#10;30 天有效期&#10;支付成功后自动开通">${esc(featuresText)}</textarea>
+              <p class="hint">显示在价格卡片下方的勾选列表；留空则按有效期 / 流量 / 设备数自动生成。</p>
+              <p class="error-text hidden" data-error-for="features"></p>
             </div>
             <div class="field a-span-2">
               <div class="a-check-row">
@@ -377,6 +384,13 @@ export async function render(root, ctx) {
       }
     }
 
+    const featureLines = get('features')
+      .split(/\r?\n/)
+      .map((item) => item.trim())
+      .filter(Boolean);
+    if (featureLines.length > 12) errors.features = '套餐特性最多 12 条';
+    else if (featureLines.some((item) => [...item].length > 80)) errors.features = '每条特性不能超过 80 个字符';
+
     const keys = Object.keys(errors);
     keys.forEach((key) => setFieldError(form, key, errors[key]));
     if (keys.length) {
@@ -388,6 +402,7 @@ export async function render(root, ctx) {
     const body = {
       name,
       description: get('description'),
+      features: featureLines,
       priceCents,
       days,
       periodLabel,

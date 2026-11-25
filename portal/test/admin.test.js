@@ -49,6 +49,7 @@ describe('管理后台', () => {
     assert.equal(list.total, 1);
     assert.equal(list.items[0].username, 'admin-target');
     assert.equal(list.items[0].password, undefined, '不得返回密码哈希');
+    assert.equal(typeof list.items[0].lastLoginAt, 'number', '返回上次登录时间供状态提示使用');
 
     const detail = expectOk(await admin.get(`/api/admin/users/${userId}`));
     assert.equal(detail.user.id, userId);
@@ -80,6 +81,7 @@ describe('管理后台', () => {
       await admin.post('/api/admin/plans', {
         name: '月付套餐',
         description: '测试套餐',
+        features: ['500 GB 流量额度', '30 天有效期'],
         priceCents: 1000,
         days: 30,
         trafficGb: 100,
@@ -92,11 +94,15 @@ describe('管理后台', () => {
     assert.equal(created.name, '月付套餐');
     assert.equal(created.trafficBytes, 100 * 1024 * 1024 * 1024);
     assert.deepEqual(created.inboundIds, [1]);
+    assert.deepEqual(created.features, ['500 GB 流量额度', '30 天有效期']);
     assert.equal(created.periodLabel, '期', '未指定计费单位时默认为「期」');
 
-    const updated = expectOk(await admin.put(`/api/admin/plans/${created.id}`, { priceCents: 2000, periodLabel: '月' }));
+    const updated = expectOk(
+      await admin.put(`/api/admin/plans/${created.id}`, { priceCents: 2000, periodLabel: '月', features: ['自定义权益'] }),
+    );
     assert.equal(updated.priceCents, 2000);
     assert.equal(updated.periodLabel, '月');
+    assert.deepEqual(updated.features, ['自定义权益']);
     assert.equal(updated.days, 30, '未提供的字段保持不变');
 
     const publicPlans = expectOk(await admin.get('/api/plans'));
@@ -124,15 +130,15 @@ describe('管理后台', () => {
     const orderId = created.order.id;
     const paid = expectOk(await admin.post(`/api/admin/orders/${orderId}/mark-paid`, {}), '标记已支付');
     assert.equal(paid.status, 'provisioned');
-    assert.ok(xui.clients.get(`u${registered.user.id}@portal`));
+    assert.ok(xui.clients.get('manual-user'));
 
     const detail = expectOk(await admin.get(`/api/admin/orders/${orderId}`));
     assert.equal(detail.status, 'provisioned');
-    const clientRecord = xui.clients.get(`u${registered.user.id}@portal`);
+    const clientRecord = xui.clients.get('manual-user');
     const expiry = clientRecord.expiryTime;
     const repeated = expectOk(await admin.post(`/api/admin/orders/${orderId}/mark-paid`, {}), '重复标记应幂等');
     assert.equal(repeated.status, 'provisioned');
-    assert.equal(xui.clients.get(`u${registered.user.id}@portal`).expiryTime, expiry, '重复标记不得重复开通');
+    assert.equal(xui.clients.get('manual-user').expiryTime, expiry, '重复标记不得重复开通');
   });
 
   it('取消待支付订单，已取消订单不可支付', async () => {
@@ -213,6 +219,9 @@ describe('管理后台', () => {
     assert.equal(data.inbounds[0].id, 1);
     assert.equal(data.inbounds[0].protocol, 'vless');
     assert.equal(data.subscription.subURI, 'https://sub.example.com/sub/');
+    assert.equal(typeof data.apiLatencyMs, 'number');
+    assert.ok('latencyMs' in data.inbounds[0], '入站应返回实时 TCP 延迟');
+    assert.ok(['tcp', 'udp', 'unreachable'].includes(data.inbounds[0].latencyNote));
   });
 
   it('面板连接失败时返回具体原因，而不是笼统的内部错误', async () => {
@@ -313,6 +322,26 @@ describe('管理后台', () => {
     expectOk(await admin.post(`/api/admin/users/${registered.user.id}/status`, { status: 'active' }));
     const relogged = await banClient.login('ban-target', 'password123');
     assert.equal(relogged.user.id, registered.user.id);
+  });
+
+  it('删除用户：清理订单与会话，管理员账号不可删除', async () => {
+    const target = createClient(app.baseUrl);
+    const registered = await target.register('delete-target', 'password123');
+    expectOk(await admin.post(`/api/admin/users/${registered.user.id}/balance`, { deltaCents: 50000 }), '充值余额');
+    expectOk(await target.post('/api/me/purchase', { planId: 1, method: 'balance' }), '购买套餐');
+    const ordersBefore = Number(app.store.get('SELECT COUNT(*) AS total FROM orders WHERE user_id = ?', registered.user.id).total);
+    assert.ok(ordersBefore > 0);
+
+    expectOk(await admin.delete(`/api/admin/users/${registered.user.id}`), '删除用户');
+    expectError(await target.get('/api/me'), 'unauthorized', '删除后当前会话失效');
+    expectError(await target.post('/api/auth/login', { username: 'delete-target', password: 'password123' }), 'invalid_credentials', '删除后不能登录');
+    const listed = expectOk(await admin.get('/api/admin/users?query=delete-target'));
+    assert.equal(listed.total, 0, '用户列表不再出现');
+    const ordersAfter = Number(app.store.get('SELECT COUNT(*) AS total FROM orders WHERE user_id = ?', registered.user.id).total);
+    assert.equal(ordersAfter, 0, '关联订单一并删除');
+
+    expectError(await admin.delete(`/api/admin/users/${adminId}`), 'validation_error', '管理员账号不可删除');
+    expectError(await admin.delete('/api/admin/users/999999'), 'user_not_found', '不存在的用户');
   });
 
   it('管理员账号不能通过用户接口封禁', async () => {

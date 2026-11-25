@@ -36,14 +36,14 @@ describe('在线支付与充值', () => {
 
     const paid = await completeMock(created.order.orderNo);
     assert.equal(paid.status, 'provisioned');
-    const clientRecord = xui.clients.get(`u${paid.userId}@portal`);
+    const clientRecord = xui.clients.get('pay-user');
     assert.ok(clientRecord);
     const expiry = clientRecord.expiryTime;
     const createCalls = xui.calls.filter((call) => call === 'createClient').length;
 
     const again = await completeMock(created.order.orderNo);
     assert.equal(again.status, 'provisioned');
-    assert.equal(xui.clients.get(`u${paid.userId}@portal`).expiryTime, expiry, '重复回调不得重复续期');
+    assert.equal(xui.clients.get('pay-user').expiryTime, expiry, '重复回调不得重复续期');
     assert.equal(xui.calls.filter((call) => call === 'createClient').length, createCalls);
   });
 
@@ -115,13 +115,13 @@ describe('在线支付与充值', () => {
 
     const orders = expectOk(await epayUser.get('/api/me/orders'));
     assert.equal(orders.items[0].status, 'provisioned');
-    const clientRecord = xui.clients.get(`u${registered.user.id}@portal`);
+    const clientRecord = xui.clients.get('epay-user');
     assert.ok(clientRecord);
     const expiry = clientRecord.expiryTime;
 
     const repeated = await epayUser.request('POST', '/api/payment/notify/epay', { form: notify });
     assert.equal(repeated.text, 'success');
-    assert.equal(xui.clients.get(`u${registered.user.id}@portal`).expiryTime, expiry, '重复通知不得重复续期');
+    assert.equal(xui.clients.get('epay-user').expiryTime, expiry, '重复通知不得重复续期');
 
     const returnResponse = await epayUser.get(`/api/payment/return/epay?orderNo=${created.order.orderNo}`);
     assert.equal(returnResponse.status, 302);
@@ -160,7 +160,7 @@ describe('在线支付与充值', () => {
     const result = expectOk(await autoUser.post('/api/me/purchase', { planId: 1, method: 'online', provider: 'mock' }));
     assert.equal(result.order.status, 'provisioned');
     assert.equal(result.payment.autoPaid, true);
-    assert.ok(xui.clients.get(`u${registered.user.id}@portal`));
+    assert.ok(xui.clients.get('auto-user'));
     expectOk(await admin.put('/api/admin/settings', { 'pay.mockAutoComplete': 'false' }), '关闭自动完成');
   });
 });

@@ -272,13 +272,14 @@ export async function render(root, ctx) {
     const description = plan.description
       ? ctx.ui.escape(plan.description)
       : `${plan.days} 天 · ${trafficText} · ${deviceText}`;
-    const features = [
+    const fallbackFeatures = [
       trafficText === '不限流量' ? '不限流量额度' : `${trafficText} 流量额度`,
       `${plan.days} 天有效期`,
       deviceText,
       '支付成功后自动开通',
       '订阅链接自动生成',
     ];
+    const features = Array.isArray(plan.features) && plan.features.length ? plan.features : fallbackFeatures;
     const icon = PLAN_ICONS[index % PLAN_ICONS.length];
     return `<article class="price-card ${featured ? 'featured' : ''}">
       ${featured ? '<div class="price-topbar">最受欢迎</div>' : ''}

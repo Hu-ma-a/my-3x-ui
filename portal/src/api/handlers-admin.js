@@ -43,6 +43,10 @@ export async function resetUserPassword(ctx, services) {
   return services.admin.resetPassword(idParam(ctx), newPassword);
 }
 
+export function deleteUser(ctx, services) {
+  return services.admin.deleteUser(ctx.user.id, idParam(ctx));
+}
+
 export function listAdmins(ctx, services) {
   return services.admin.listAdmins(ctx.user.id);
 }
@@ -151,4 +155,30 @@ export function checkUpdate(ctx, services) {
 
 export function applyUpdate(ctx, services) {
   return services.update.enqueue('apply');
+}
+
+export function listRedeemKeys(ctx, services) {
+  const { page, pageSize } = pagination(ctx.query);
+  return services.redeem.list({
+    page,
+    pageSize,
+    status: String(ctx.query.status || '').trim(),
+    batch: String(ctx.query.batch || '').trim(),
+    query: String(ctx.query.query || '').trim().slice(0, 100),
+  });
+}
+
+export async function createRedeemKeys(ctx, services) {
+  const body = await ctx.body();
+  const amountCents = int(body, 'amountCents', { label: '充值金额', min: 1, max: 100000000 });
+  const count = int(body, 'count', { label: '生成数量', min: 1, max: 100 });
+  const days = body.days === undefined || body.days === null || body.days === ''
+    ? 0
+    : int(body, 'days', { label: '有效期天数', min: 0, max: 3650 });
+  const note = typeof body.note === 'string' ? body.note.trim().slice(0, 120) : '';
+  return services.redeem.generate({ amountCents, count, days, note, createdBy: ctx.user.id });
+}
+
+export function revokeRedeemKey(ctx, services) {
+  return services.redeem.revoke(idParam(ctx));
 }

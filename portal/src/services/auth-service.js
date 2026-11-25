@@ -5,7 +5,7 @@ import { hashPassword, verifyPassword } from '../auth/password.js';
 import { createLimiter } from '../http/security.js';
 import { AppError, errors } from '../util/errors.js';
 import { email as validateEmail, password as validatePassword, username as validateUsername } from '../util/validate.js';
-import { randomToken, sha256 } from '../util/ids.js';
+import { randomToken } from '../util/ids.js';
 
 const LOGIN_WINDOW_MS = 15 * 60 * 1000;
 const LOGIN_MAX_ATTEMPTS = 5;
@@ -124,7 +124,8 @@ export class AuthService {
     if (next.length < 8 || next.length > 72) throw errors.validation('新密码长度需为 8-72 个字符');
     if (next === currentPassword) throw errors.validation('新密码不能与当前密码相同');
     userModel.setPassword(this.store, user.id, hashPassword(next));
-    sessionModel.removeByUser(this.store, user.id, currentToken ? { exceptHash: sha256(currentToken) } : {});
+    // 修改密码后所有会话（包括当前设备）立即失效，需用新密码重新登录。
+    sessionModel.removeByUser(this.store, user.id);
   }
 
   resetPasswordByAdmin(userId, newPassword) {

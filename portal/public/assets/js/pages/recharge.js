@@ -81,6 +81,23 @@ export async function render(root, ctx) {
               <p class="hint text-center p-recharge-secure">支付成功后余额自动到账，无需人工确认。</p>
             </div>
           </section>
+          <section class="card p-redeem-card">
+            <div class="card-head">
+              <h2 class="card-title">使用充值码</h2>
+              <span class="badge badge-muted" id="p-redeem-balance">当前余额 ${ctx.ui.money(me.balanceCents || 0)}</span>
+            </div>
+            <div class="card-body">
+              <div class="field">
+                <label class="field-label" for="p-redeem-code">充值码</label>
+                <div class="input-group">
+                  <input class="input" id="p-redeem-code" placeholder="P-XXXX-XXXX-XXXX" autocomplete="off" maxlength="32">
+                  <button class="btn btn-accent" id="p-redeem-submit" type="button">兑换</button>
+                </div>
+                <p class="hint">输入管理员生成的充值码，余额立即到账；每个充值码仅可使用一次。</p>
+              </div>
+              <div class="error-text" id="p-redeem-error" role="alert"></div>
+            </div>
+          </section>
           <section class="card p-recharge-note">
             <div class="card-head">
               <h2 class="card-title">余额说明</h2>
@@ -284,5 +301,46 @@ export async function render(root, ctx) {
     });
 
     submit.addEventListener('click', onSubmit);
+
+    const redeemInput = root.querySelector('#p-redeem-code');
+    const redeemBtn = root.querySelector('#p-redeem-submit');
+    const redeemError = root.querySelector('#p-redeem-error');
+    const redeemBalance = root.querySelector('#p-redeem-balance');
+
+    async function onRedeem() {
+      const code = redeemInput.value.trim();
+      redeemError.textContent = '';
+      if (!code) {
+        redeemError.textContent = '请输入充值码';
+        redeemInput.focus();
+        return;
+      }
+      redeemBtn.disabled = true;
+      redeemBtn.textContent = '兑换中…';
+      try {
+        const result = await ctx.api.redeemKey(code);
+        ctx.toast(`充值成功：${ctx.ui.money(result.amountCents)} 已到账`, 'success');
+        redeemInput.value = '';
+        if (redeemBalance) redeemBalance.textContent = `当前余额 ${ctx.ui.money(result.balanceCents)}`;
+        try {
+          await ctx.refreshMe();
+        } catch {
+          // 刷新失败不影响兑换结果。
+        }
+      } catch (err) {
+        redeemError.textContent = err && err.message ? err.message : '兑换失败，请稍后重试';
+      } finally {
+        redeemBtn.disabled = false;
+        redeemBtn.textContent = '兑换';
+      }
+    }
+
+    redeemBtn.addEventListener('click', onRedeem);
+    redeemInput.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        onRedeem();
+      }
+    });
   }
 }

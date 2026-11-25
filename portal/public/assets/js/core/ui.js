@@ -134,6 +134,16 @@ function badge(status) {
   return `<span class="badge badge-${tone(status)}">${escapeHtml(statusText(status))}</span>`;
 }
 
+/** 入站实时延迟徽标：绿色快、黄色一般、红色慢/不可达。 */
+function latencyBadge(ms, note = '') {
+  if (note === 'udp') return '<span class="badge badge-muted">UDP 协议</span>';
+  if (ms == null) return '<span class="badge badge-danger">不可达</span>';
+  const value = Number(ms);
+  if (!Number.isFinite(value)) return '<span class="badge badge-muted">—</span>';
+  const level = value <= 80 ? 'success' : value <= 200 ? 'info' : value <= 400 ? 'warning' : 'danger';
+  return `<span class="badge badge-${level}">${Math.round(value)} ms</span>`;
+}
+
 function qs(root, selector) {
   return (root || document).querySelector(selector);
 }
@@ -282,6 +292,7 @@ export const ui = {
   kindText,
   tone,
   badge,
+  latencyBadge,
   qs,
   qsa,
   on,

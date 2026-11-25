@@ -18,6 +18,7 @@ const ROUTES = [
   { path: '/admin/plans', load: () => import('./admin/plans.js') },
   { path: '/admin/orders', load: () => import('./admin/orders.js') },
   { path: '/admin/recharges', load: () => import('./admin/recharges.js') },
+  { path: '/admin/redeem-keys', load: () => import('./admin/redeem-keys.js') },
   { path: '/admin/settings', load: () => import('./admin/settings.js') },
 ];
 
@@ -36,6 +37,7 @@ const NAV_ADMIN = [
   { path: '/admin/plans', label: '套餐管理' },
   { path: '/admin/orders', label: '订单管理' },
   { path: '/admin/recharges', label: '充值记录' },
+  { path: '/admin/redeem-keys', label: '充值码' },
   { path: '/admin/settings', label: '系统设置' },
 ];
 

@@ -183,8 +183,8 @@ export async function render(root, ctx) {
     }
   }
 
-  async function loadXui(btn) {
-    xuiBox.innerHTML = `<div class="loading-block">${ui.spinner()}<span>正在测试连接…</span></div>`;
+  async function loadXui(btn, { silent = false } = {}) {
+    if (!silent) xuiBox.innerHTML = `<div class="loading-block">${ui.spinner()}<span>正在测试连接…</span></div>`;
     if (btn) {
       btn.disabled = true;
       btn.textContent = '测试中…';
@@ -196,6 +196,7 @@ export async function render(root, ctx) {
       const meta = [];
       if (result.panelVersion) meta.push(`面板版本 ${esc(result.panelVersion)}`);
       meta.push(`入站 ${esc(result.inboundCount != null ? result.inboundCount : inbounds.length)} 个`);
+      if (result.apiLatencyMs != null) meta.push(`API 延迟 ${esc(result.apiLatencyMs)} ms`);
       if (result.clientCount != null) meta.push(`客户端 ${esc(result.clientCount)} 个`);
       const sub = result.subscription || {};
       if (sub.subEnable !== undefined) meta.push(`订阅功能${sub.subEnable ? '已启用' : '未启用'}`);
@@ -207,11 +208,13 @@ export async function render(root, ctx) {
         <div class="row-side"><span class="badge badge-success">已连接</span></div>
       </div>`];
       for (const inbound of inbounds.slice(0, 10)) {
+        const endpoint = inbound.endpoint ? ` · ${esc(inbound.endpoint)}` : '';
         rows.push(`<div class="row-item">
           <div class="row-main">
             <div class="row-title">#${esc(inbound.id)} ${esc(inbound.remark || '未命名入站')}</div>
-            <div class="row-sub">${esc(inbound.protocol || '未知协议')}</div>
+            <div class="row-sub">${esc(inbound.protocol || '未知协议')}${endpoint}</div>
           </div>
+          <div class="row-side">${ctx.ui.latencyBadge(inbound.latencyMs, inbound.latencyNote)}</div>
         </div>`);
       }
       if (inbounds.length > 10) {
@@ -220,8 +223,10 @@ export async function render(root, ctx) {
       if (!inbounds.length) {
         rows.push(`<div class="row-item"><div class="row-main"><div class="row-sub">未发现入站，请先在面板中创建入站。</div></div></div>`);
       }
-      xuiBox.innerHTML = `<div class="rows">${rows.join('')}</div>`;
+      xuiBox.innerHTML = `<div class="rows">${rows.join('')}</div>
+        <p class="hint mt-1">入站延迟每 20 秒自动刷新；UDP 协议（hysteria/tuic 等）无法用 TCP 探测，显示「UDP 协议」。</p>`;
     } catch (err) {
+      if (silent) return;
       if (handleAuthError(ctx, err)) return;
       xuiBox.innerHTML = `<div class="stack-sm">
         <div class="alert alert-danger">连接失败：${esc(err && err.message ? err.message : '未知错误')}</div>
@@ -248,7 +253,22 @@ export async function render(root, ctx) {
     }
   });
 
+  let xuiTimer = null;
+
+  function startXuiAutoRefresh() {
+    if (xuiTimer) return;
+    xuiTimer = setInterval(() => loadXui(null, { silent: true }), 20000);
+  }
+
+  ctx.onCleanup(() => {
+    if (xuiTimer) {
+      clearInterval(xuiTimer);
+      xuiTimer = null;
+    }
+  });
+
   loadStats();
   loadRecent();
   loadXui(wrap.querySelector('[data-act="test-xui"]'));
+  startXuiAutoRefresh();
 }

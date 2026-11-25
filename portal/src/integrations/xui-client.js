@@ -156,7 +156,7 @@ export class XuiClient {
         await this.login();
         return this.request(method, path, { body, form, retryAuth: false });
       }
-      throw new XuiError('面板返回重定向：请检查面板地址、基础路径与登录状态', { status: response.status });
+      throw new XuiError(`面板返回重定向（${url}）：请检查面板地址、基础路径与登录状态`, { status: response.status });
     }
     if (response.status === 401 || response.status === 403) {
       if (!this.apiToken && retryAuth) {
@@ -184,10 +184,11 @@ export class XuiClient {
     try {
       parsed = text ? JSON.parse(text) : null;
     } catch {
-      throw new XuiError(`面板返回了非 JSON 响应（HTTP ${response.status}）`, { status: response.status });
+      throw new XuiError(`面板返回了非 JSON 响应（HTTP ${response.status}）：${url}`, { status: response.status });
     }
     if (response.status >= 400) {
-      throw new XuiError(parsed?.msg || `面板请求失败（HTTP ${response.status}）`, { status: response.status });
+      const detail = parsed?.msg ? `${parsed.msg} ` : '';
+      throw new XuiError(`${detail}面板请求失败（HTTP ${response.status}，地址：${url}）`, { status: response.status });
     }
     if (parsed && parsed.success === false) {
       throw new XuiError(parsed.msg || '面板操作失败');

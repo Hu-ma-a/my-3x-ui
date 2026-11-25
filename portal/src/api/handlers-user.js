@@ -49,6 +49,11 @@ export async function recharge(ctx, services) {
   });
 }
 
+export async function redeemKey(ctx, services) {
+  const body = await ctx.body();
+  return services.redeem.redeem({ user: ctx.user, code: body.code });
+}
+
 export async function mockComplete(ctx, services) {
   const order = await services.orders.completeMock(ctx.user.id, ctx.params.orderNo);
   return ordersModel.toOrder(order);

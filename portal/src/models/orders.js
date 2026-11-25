@@ -59,6 +59,10 @@ export function findById(store, id) {
   return store.get(`${ORDER_SELECT} WHERE o.id = ?`, Number(id));
 }
 
+export function removeForUser(store, userId) {
+  store.run('DELETE FROM orders WHERE user_id = ?', Number(userId));
+}
+
 export function listForUser(store, userId, { kind = '', limit = 20, offset = 0 } = {}) {
   const params = [Number(userId)];
   let clause = 'WHERE o.user_id = ?';

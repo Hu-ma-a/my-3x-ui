@@ -1,5 +1,21 @@
 const GB = 1024 * 1024 * 1024;
 
+export function parseFeatures(raw) {
+  if (!raw) return [];
+  if (Array.isArray(raw)) return raw.map((item) => String(item).trim()).filter(Boolean).slice(0, 12);
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) return parsed.map((item) => String(item).trim()).filter(Boolean).slice(0, 12);
+  } catch {
+    // 兼容按行保存的旧格式。
+  }
+  return String(raw)
+    .split(/\r?\n/)
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .slice(0, 12);
+}
+
 export function toPlan(row) {
   if (!row) return null;
   const trafficGb = Number(row.traffic_gb);
@@ -10,6 +26,7 @@ export function toPlan(row) {
     priceCents: Number(row.price_cents),
     days: Number(row.days),
     periodLabel: row.period_label || '期',
+    features: parseFeatures(row.features),
     trafficGb,
     trafficBytes: Math.round(trafficGb * GB),
     deviceLimit: Number(row.device_limit),
@@ -42,13 +59,14 @@ export function find(store, id) {
 export function create(store, data) {
   const now = Date.now();
   const result = store.run(
-    `INSERT INTO plans(name, description, price_cents, days, period_label, traffic_gb, device_limit, inbound_ids, enabled, featured, sort, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO plans(name, description, price_cents, days, period_label, features, traffic_gb, device_limit, inbound_ids, enabled, featured, sort, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     data.name,
     data.description,
     data.priceCents,
     data.days,
     data.periodLabel,
+    JSON.stringify(data.features || []),
     data.trafficGb,
     data.deviceLimit,
     data.inboundIds.join(','),
@@ -63,7 +81,7 @@ export function create(store, data) {
 
 export function update(store, id, data) {
   store.run(
-    `UPDATE plans SET name = ?, description = ?, price_cents = ?, days = ?, period_label = ?, traffic_gb = ?, device_limit = ?,
+    `UPDATE plans SET name = ?, description = ?, price_cents = ?, days = ?, period_label = ?, features = ?, traffic_gb = ?, device_limit = ?,
        inbound_ids = ?, enabled = ?, featured = ?, sort = ?, updated_at = ?
      WHERE id = ?`,
     data.name,
@@ -71,6 +89,7 @@ export function update(store, id, data) {
     data.priceCents,
     data.days,
     data.periodLabel,
+    JSON.stringify(data.features || []),
     data.trafficGb,
     data.deviceLimit,
     data.inboundIds.join(','),

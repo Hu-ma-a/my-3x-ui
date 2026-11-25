@@ -58,6 +58,7 @@ CREATE TABLE IF NOT EXISTS plans (
   price_cents INTEGER NOT NULL,
   days INTEGER NOT NULL,
   period_label TEXT NOT NULL DEFAULT '期',
+  features TEXT NOT NULL DEFAULT '',
   traffic_gb REAL NOT NULL DEFAULT 0,
   device_limit INTEGER NOT NULL DEFAULT 0,
   inbound_ids TEXT NOT NULL DEFAULT '',
@@ -98,6 +99,21 @@ CREATE TABLE IF NOT EXISTS orders (
 CREATE INDEX IF NOT EXISTS idx_orders_user ON orders(user_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status);
 CREATE INDEX IF NOT EXISTS idx_orders_created ON orders(created_at DESC);
+
+CREATE TABLE IF NOT EXISTS redeem_keys (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  code TEXT NOT NULL UNIQUE COLLATE NOCASE,
+  amount_cents INTEGER NOT NULL,
+  status TEXT NOT NULL DEFAULT 'unused',
+  note TEXT NOT NULL DEFAULT '',
+  batch TEXT NOT NULL DEFAULT '',
+  created_by INTEGER,
+  created_at INTEGER NOT NULL,
+  expires_at INTEGER,
+  used_by INTEGER,
+  used_at INTEGER
+);
+CREATE INDEX IF NOT EXISTS idx_redeem_status ON redeem_keys(status, created_at DESC);
 
 CREATE TABLE IF NOT EXISTS settings (
   key TEXT PRIMARY KEY,
@@ -171,6 +187,9 @@ function ensureSchemaColumns(store) {
   const planColumns = store.all('PRAGMA table_info(plans)').map((column) => column.name);
   if (!planColumns.includes('period_label')) {
     store.run("ALTER TABLE plans ADD COLUMN period_label TEXT NOT NULL DEFAULT '期'");
+  }
+  if (!planColumns.includes('features')) {
+    store.run("ALTER TABLE plans ADD COLUMN features TEXT NOT NULL DEFAULT ''");
   }
 }
 

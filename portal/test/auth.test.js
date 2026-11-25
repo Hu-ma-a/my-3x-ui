@@ -137,6 +137,7 @@ describe('认证', () => {
     client.clearCookies();
     await client.login('alice', 'password123');
     expectOk(await client.post('/api/me/password', { currentPassword: 'password123', newPassword: 'password456' }));
+    expectError(await client.get('/api/me'), 'unauthorized', '改密后当前会话也立即失效');
     client.clearCookies();
     expectError(await client.post('/api/auth/login', { username: 'alice', password: 'password123' }), 'invalid_credentials', '旧密码');
     const data = await client.login('alice', 'password456');

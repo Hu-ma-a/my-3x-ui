@@ -99,13 +99,16 @@ export async function render(root, ctx) {
     const isAdmin = user.role === 'admin';
     const expired = user.planExpiresAt && Number(user.planExpiresAt) < Date.now();
     const account = user.email || user.clientEmail || '';
-    const statusCell = isAdmin ? '<span class="badge badge-info">管理员</span>' : ui.badge(user.status);
+    const statusCell = isAdmin
+      ? '<span class="badge badge-info">管理员</span>'
+      : `<span class="a-status-tip" title="${esc(user.lastLoginAt ? `上次登录：${dateTime(user.lastLoginAt)}（${ui.relative(user.lastLoginAt)}）` : '从未登录')}">${ui.badge(user.status)}</span>`;
     const actions = isAdmin
       ? '<a class="link-btn" href="#/admin/admins">管理员管理</a>'
       : `<button type="button" class="link-btn${active ? ' danger' : ''}"
             data-act="toggle-status" data-id="${esc(user.id)}" data-status="${esc(user.status)}" data-username="${esc(user.username)}">${active ? '封禁' : '解封'}</button>
           <button type="button" class="link-btn" data-act="adjust-balance" data-id="${esc(user.id)}">调整余额</button>
-          <button type="button" class="link-btn" data-act="reset-password" data-id="${esc(user.id)}" data-username="${esc(user.username)}">重置密码</button>`;
+          <button type="button" class="link-btn" data-act="reset-password" data-id="${esc(user.id)}" data-username="${esc(user.username)}">重置密码</button>
+          <button type="button" class="link-btn danger" data-act="delete-user" data-id="${esc(user.id)}" data-username="${esc(user.username)}">删除</button>`;
     return `<tr>
       <td class="mono">${esc(user.id)}</td>
       <td>
@@ -333,6 +336,30 @@ export async function render(root, ctx) {
     load();
   }
 
+  async function deleteUser(btn) {
+    const user = findUser(btn);
+    if (!user) return;
+    const ok = await ctx.ui.confirm({
+      title: '删除用户',
+      content: `确定永久删除用户「${user.username}」吗？其订单、会话和余额记录会一并删除且不可恢复。面板里已开通的客户端不会自动删除，需要的话请手动删除。`,
+      okText: '永久删除',
+      danger: true,
+    });
+    if (!ok) return;
+    btn.disabled = true;
+    btn.textContent = '删除中…';
+    try {
+      await ctx.api.admin.deleteUser(user.id);
+      ctx.toast(`已删除用户「${user.username}」`, 'success');
+      await load();
+    } catch (err) {
+      if (handleAuthError(ctx, err)) return;
+      ctx.toast(err && err.message ? err.message : '删除失败，请稍后重试', 'error');
+      btn.disabled = false;
+      btn.textContent = '删除';
+    }
+  }
+
   wrap.addEventListener('click', (e) => {
     const pageBtn = e.target.closest('[data-page]');
     if (pageBtn && !pageBtn.disabled) {
@@ -356,6 +383,8 @@ export async function render(root, ctx) {
     } else if (act === 'reset-password') {
       const user = findUser(btn);
       if (user) openPasswordModal(user);
+    } else if (act === 'delete-user') {
+      deleteUser(btn);
     }
   });
 
