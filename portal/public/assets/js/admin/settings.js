@@ -538,6 +538,14 @@ export async function render(root, ctx) {
       if (updateBox) {
         updateBox.innerHTML = `<div class="alert alert-danger">读取版本信息失败：${esc(err && err.message ? err.message : '未知错误')}</div>`;
       }
+      // 门户重启/短暂断连时，恢复按钮可点击，避免一直停在「检查中…」。
+      const checkBtn = wrap.querySelector('[data-act="update-check"]');
+      if (checkBtn) {
+        checkBtn.disabled = false;
+        checkBtn.textContent = '检查更新';
+      }
+      const applyBtn = wrap.querySelector('[data-act="update-apply"]');
+      if (applyBtn) applyBtn.disabled = true;
     }
   }
 

@@ -27,6 +27,8 @@ const ENV_FILE = process.env.PORTAL_ENV_FILE || '/etc/portal/portal.env';
 const UPDATE_DIR = path.join(DATA_DIR, 'update');
 const REQUEST_FILE = path.join(UPDATE_DIR, 'request.json');
 const RESULT_FILE = path.join(UPDATE_DIR, 'result.json');
+const BACKUP_DIR = process.env.PORTAL_BACKUP_DIR || '/var/backups/portal';
+const PROGRAM_BACKUP = path.join(BACKUP_DIR, 'portal-program-last.tar.gz');
 const REPO_PATTERN = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
 const MIRROR_PATTERN = /^https?:\/\/[^\s]+$/i;
 
@@ -220,14 +222,112 @@ async function runApply(repo, mirror) {
     process.env.PORTAL_ENV_FILE = ENV_FILE;
     process.env.PORTAL_REPO = repo;
     process.env.PORTAL_GH_MIRROR = mirror;
+
+    // 升级前备份当前程序文件（不含 data），新版本启动失败时自动回滚。
+    try {
+      backupProgram();
+      log(`已备份当前程序文件到 ${PROGRAM_BACKUP}`);
+    } catch (err) {
+      throw new Error(`升级前备份失败，未执行升级：${err.message}`);
+    }
+
     log('调用 install.sh --upgrade 部署新版本…');
     writeHeartbeat('applying');
-    execFileSync('bash', [installScript, '--upgrade', '--no-auto'], { stdio: 'inherit', env: process.env });
+    try {
+      execFileSync('bash', [installScript, '--upgrade', '--no-auto'], {
+        stdio: 'inherit',
+        env: { ...process.env, PORTAL_UPDATE_SELF: '1' },
+      });
+    } catch (err) {
+      await rollbackUpdate(tag, new Error(`install.sh 执行失败：${err.message}`));
+      return;
+    }
+    if (!(await waitHealth(90000))) {
+      await rollbackUpdate(tag, new Error('新版本启动后健康检查未通过'));
+      return;
+    }
     if (previousEnv === undefined) delete process.env.PORTAL_ENV_FILE;
     else process.env.PORTAL_ENV_FILE = previousEnv;
     writeResult({ status: 'applied', latestTag: tag, currentVersion: versionOf(tag), message: `已更新到 ${tag}` });
   } finally {
     rmSync(workDir, { recursive: true, force: true });
+  }
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function healthPort() {
+  const fromEnv = Number(envValue('PORTAL_PORT'));
+  return Number.isInteger(fromEnv) && fromEnv > 0 ? fromEnv : Number(process.env.PORTAL_PORT || 8090);
+}
+
+async function waitHealth(timeoutMs = 90000) {
+  const port = healthPort();
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    try {
+      const response = await fetch(`http://127.0.0.1:${port}/api/health`, {
+        signal: AbortSignal.timeout(3000),
+      });
+      if (response.ok) return true;
+    } catch {
+      // 服务重启期间连接失败，继续等待。
+    }
+    await sleep(1000);
+  }
+  return false;
+}
+
+function backupProgram() {
+  mkdirSync(BACKUP_DIR, { recursive: true });
+  rmSync(PROGRAM_BACKUP, { force: true });
+  execFileSync(
+    'tar',
+    [
+      '-czf',
+      PROGRAM_BACKUP,
+      '--exclude=portal/data',
+      '--exclude=portal/data/*',
+      '-C',
+      path.dirname(HOME),
+      path.basename(HOME),
+    ],
+    { stdio: 'inherit', env: process.env },
+  );
+}
+
+function restoreProgram() {
+  execFileSync('systemctl', ['stop', 'portal'], { stdio: 'inherit' });
+  execFileSync('tar', ['-xzf', PROGRAM_BACKUP, '-C', path.dirname(HOME)], { stdio: 'inherit' });
+  try {
+    execFileSync('chown', ['-R', 'portal:portal', HOME], { stdio: 'ignore' });
+  } catch {
+    // 用户/组不存在时保持原权限。
+  }
+  execFileSync('systemctl', ['start', 'portal'], { stdio: 'inherit' });
+}
+
+async function rollbackUpdate(tag, cause) {
+  const message = cause && cause.message ? cause.message : String(cause);
+  log(`升级失败：${message}，开始自动回滚…`);
+  writeHeartbeat('rolling-back');
+  try {
+    restoreProgram();
+    if (!(await waitHealth(60000))) throw new Error('回滚后健康检查未通过');
+    writeResult({
+      status: 'failed',
+      latestTag: tag,
+      currentVersion: currentVersion(),
+      message: `升级失败：${message}；已自动回滚到上一版本`,
+    });
+  } catch (err) {
+    writeResult({
+      status: 'failed',
+      latestTag: tag,
+      message: `升级失败：${message}；自动回滚也失败：${err.message}。请在服务器执行 sudo bash ${path.join(HOME, 'scripts', 'install.sh')} --upgrade 修复`,
+    });
   }
 }
 

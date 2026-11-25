@@ -70,6 +70,9 @@ describe('一键安装与发布产物', () => {
     assert.ok(runner.includes("action === 'check'") && runner.includes("action === 'apply'"), '更新执行器需支持检查与更新');
     assert.ok(runner.includes("'--upgrade'"), '更新执行器应调用 install.sh --upgrade');
     assert.ok(runner.includes('sha256'), '更新执行器应支持 sha256 校验');
+    assert.ok(runner.includes('portal-program-last'), '更新执行器应在升级前备份当前程序文件');
+    assert.ok(runner.includes('waitHealth'), '更新执行器应在新版本启动后做健康检查');
+    assert.ok(runner.includes('rollbackUpdate') && runner.includes('自动回滚'), '健康检查失败时应自动回滚');
 
     const script = read('scripts/install.sh');
     assert.ok(script.includes('--check-update'), 'install.sh 应提供 --check-update 检查命令');

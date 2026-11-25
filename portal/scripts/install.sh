@@ -77,7 +77,22 @@ die() { red "$*"; exit 1; }
 cleanup() {
   if [ -n "$STAGING_DIR" ] && [ -d "$STAGING_DIR" ]; then rm -rf "$STAGING_DIR"; fi
 }
-trap cleanup EXIT
+# 升级过程中会先停掉门户；若脚本被中断（如更新任务被 systemd 停止），
+# 退出时必须尽量把门户重新启动，避免整个站点一直不可用。
+PORTAL_GUARD=0
+ensure_portal_started() {
+  if [ "${PORTAL_GUARD:-0}" = 1 ]; then
+    PORTAL_GUARD=0
+    systemctl start portal >/dev/null 2>&1 || true
+  fi
+}
+on_exit() {
+  ensure_portal_started
+  cleanup
+}
+trap on_exit EXIT
+trap 'exit 143' TERM
+trap 'exit 130' INT
 
 usage() {
   cat <<'TXT'
@@ -778,6 +793,9 @@ EnvironmentFile=-${PORTAL_ENV_FILE}
 Environment=PORTAL_HOME=${PORTAL_DIR}
 Environment=PORTAL_ENV_FILE=${PORTAL_ENV_FILE}
 ExecStart=${NODE_BIN} ${UPDATE_RUNNER}
+# 更新包含下载 + 部署 + 健康检查，给足时间，避免被 systemd 超时中断。
+TimeoutStartSec=900
+TimeoutStopSec=60
 Nice=10
 EOF
   cat >"$UPDATE_TIMER" <<'EOF'
@@ -797,8 +815,12 @@ EOF
     yellow "启用后台更新执行器失败，可手动执行：systemctl enable --now portal-update.timer"
     return 0
   }
-  # 立即跑一次，写入心跳，让管理后台能马上看到「更新服务运行中」
-  systemctl start portal-update.service >/dev/null 2>&1 || true
+  # 立即跑一次，写入心跳，让管理后台能马上看到「更新服务运行中」。
+  # 注意：如果本脚本正是更新执行器调起的（PORTAL_UPDATE_SELF），不能在这里
+  # systemctl start 自己，否则会等待当前 oneshot 任务完成而死锁。
+  if [ -z "${PORTAL_UPDATE_SELF:-}" ] && [ -z "${INVOCATION_ID:-}" ]; then
+    systemctl start portal-update.service >/dev/null 2>&1 || true
+  fi
   # 修复历史 root 写入的 update 目录/结果文件权限，保证 portal 用户可读
   if [ -d "${PORTAL_DIR}/data/update" ]; then
     chown -R "$PORTAL_USER:$PORTAL_USER" "${PORTAL_DIR}/data/update" 2>/dev/null || true
@@ -916,6 +938,7 @@ install_systemd() {
       blue "数据库已备份到 ${backup_dir}"
     fi
     systemctl stop portal 2>/dev/null || true
+    PORTAL_GUARD=1
   fi
 
   blue "部署程序文件到 $PORTAL_DIR（保留 data/ 与 .env）"
@@ -929,17 +952,19 @@ install_systemd() {
     ADMIN_PASS_GENERATED="$(grep '^PORTAL_ADMIN_PASSWORD=' "$PORTAL_ENV_FILE" | head -n1 | cut -d= -f2-)"
   fi
   write_unit
-  install_update_units
-  install_cli
-
-  blue "启动服务"
   systemctl daemon-reload
   systemctl enable portal >/dev/null 2>&1 || true
+  blue "启动服务"
   systemctl restart portal
+  PORTAL_GUARD=0
   if wait_health "$PORT"; then
     if [ "$WATCH" = 1 ]; then install_watch_units; fi
+    # 程序已经在运行，更新执行器/命令行工具安装失败也不会导致站点不可用。
+    install_update_units
+    install_cli
     print_summary
   else
+    install_update_units || true
     yellow "服务已启动但健康检查未通过，请查看日志：journalctl -u portal -n 80 --no-pager"
     journalctl -u portal -n 40 --no-pager || true
     exit 1

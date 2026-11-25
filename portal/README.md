@@ -434,7 +434,7 @@ docker run -d --name portal --restart unless-stopped \
 systemd 安装/升级时，脚本会额外安装 `portal-update.timer`（每 30 秒检查更新请求）和以 root 运行的更新执行器 `/usr/local/lib/portal/update-runner.mjs`。管理员可在 **管理 → 系统设置 → 版本更新**：
 
 - **检查更新**：读取 GitHub 最新 Release（`portal-v*`）版本，与当前 `VERSION` 比较；
-- **立即更新**：下载 `portal.tar.gz`（发布包附带 `.sha256` 时会校验），调用 `install.sh --upgrade` 自动替换程序文件、备份数据库并重启门户，完成后页面自动刷新。
+- **立即更新**：下载 `portal.tar.gz`（发布包附带 `.sha256` 时会校验），调用 `install.sh --upgrade` 自动替换程序文件、备份数据库并重启门户，完成后页面自动刷新。升级前会把当前程序文件备份到 `/var/backups/portal/portal-program-last.tar.gz`，若新版本启动后健康检查不通过，会**自动回滚**到上一版本并恢复服务。
 
 更新源配置（systemd 一键安装时已自动写入 `/etc/portal/portal.env`）：
 
@@ -450,7 +450,7 @@ PORTAL_UPDATE_MIRROR=https://ghproxy.net/
 sudo bash /opt/portal/scripts/install.sh --check-update --repo 你的用户名/my-3x-ui
 ```
 
-> 后台一键更新仅适用于 **systemd 部署**（服务以 `portal` 用户运行、代码目录只读，实际更新由 root 定时任务完成）。Docker 部署请在宿主机 `docker pull` 新镜像后重启容器；源码/本地部署请执行 `install.sh --upgrade`。数据库与 `/etc/portal/portal.env` 会保留，升级前数据库自动备份到 `/var/backups/portal/`。
+> 后台一键更新仅适用于 **systemd 部署**（服务以 `portal` 用户运行、代码目录只读，实际更新由 root 定时任务完成）。Docker 部署请在宿主机 `docker pull` 新镜像后重启容器；源码/本地部署请执行 `install.sh --upgrade`。数据库与 `/etc/portal/portal.env` 会保留，升级前数据库自动备份到 `/var/backups/portal/`。若更新失败且自动回滚也未成功，可在服务器执行 `sudo bash /opt/portal/scripts/install.sh --upgrade --repo 你的用户名/my-3x-ui --no-auto` 手动恢复。
 
 ## 修改密码（SSH / 服务器命令行）
 
