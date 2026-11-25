@@ -187,17 +187,43 @@ describe('管理后台', () => {
     assert.equal(rechargeConfig.minRechargeCents, 500);
     assert.equal(rechargeConfig.maxRechargeCents, 200000);
 
+    const providers = expectOk(
+      await admin.put('/api/admin/settings', { 'pay.providersEnabled': 'mock,manual' }),
+    );
+    assert.equal(providers.items.find((item) => item.key === 'pay.providersEnabled').value, 'mock,manual');
+    const providerConfig = expectOk(await admin.get('/api/config'));
+    assert.deepEqual(
+      providerConfig.providers.map((provider) => provider.id),
+      ['balance', 'mock', 'manual'],
+    );
+    expectError(
+      await admin.put('/api/admin/settings', { 'pay.providersEnabled': 'mock,unknown' }),
+      'validation_error',
+      '未知支付方式',
+    );
+
     expectError(await admin.put('/api/admin/settings', { 'unknown.key': 'x' }), 'validation_error');
     expectError(await admin.put('/api/admin/settings', { 'portal.currency': 'x'.repeat(5000) }), 'validation_error', '超长值');
   });
 
-  it('测试 3x-ui 连接返回入站与订阅信息', async () => {
+  it('测试面板连接返回入站与订阅信息', async () => {
     const data = expectOk(await admin.post('/api/admin/settings/test-xui', {}), '测试连接');
     assert.equal(data.ok, true);
     assert.equal(data.inboundCount, 1);
     assert.equal(data.inbounds[0].id, 1);
     assert.equal(data.inbounds[0].protocol, 'vless');
     assert.equal(data.subscription.subURI, 'https://sub.example.com/sub/');
+  });
+
+  it('面板连接失败时返回具体原因，而不是笼统的内部错误', async () => {
+    xui.setOffline(true);
+    try {
+      const error = expectError(await admin.post('/api/admin/settings/test-xui', {}), 'xui_connection_failed', '测试连接失败');
+      assert.match(error.message, /连接面板失败/);
+      assert.match(error.message, /模拟面板离线/);
+    } finally {
+      xui.setOffline(false);
+    }
   });
 
   it('订单列表支持按类型筛选与关键字搜索', async () => {

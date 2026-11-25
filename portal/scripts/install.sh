@@ -13,6 +13,8 @@
 # 其他：--docker 用容器部署；--dry-run 只打印计划；--help 查看全部参数。
 # ============================================================
 set -euo pipefail
+set -E
+trap 'status=$?; if [ "$status" -ne 0 ]; then printf "\033[1;31m[portal]\033[0m 安装脚本执行失败（exit %s），出错位置约第 %s 行；可加 bash -x 查看详情\n" "$status" "${BASH_LINENO[0]:-?}" >&2; fi' ERR
 
 PORTAL_USER="${PORTAL_USER:-portal}"
 PORTAL_DIR="${PORTAL_DIR:-/opt/portal}"
@@ -159,6 +161,8 @@ done
 
 [ -n "$PORTAL_DIR" ] || die "--dir 不能为空"
 [ -n "$PORT" ] || die "--port 不能为空"
+
+blue "用户门户安装脚本启动（动作：$ACTION，模式：$MODE）"
 
 require_root() {
   if [ "$DRY_RUN" = 1 ]; then return 0; fi
@@ -651,8 +655,8 @@ detect_xui() {
     return 0
   fi
   show="$("$bin" setting -show true 2>/dev/null || true)"
-  port="$(printf '%s\n' "$show" | grep -E '^port: ' | tail -n1 | cut -d: -f2- | tr -d '[:space:]')"
-  base="$(printf '%s\n' "$show" | grep -E '^webBasePath: ' | tail -n1 | cut -d: -f2- | tr -d '[:space:]')"
+  port="$(printf '%s\n' "$show" | grep -E '^port: ' | tail -n1 | cut -d: -f2- | tr -d '[:space:]' || true)"
+  base="$(printf '%s\n' "$show" | grep -E '^webBasePath: ' | tail -n1 | cut -d: -f2- | tr -d '[:space:]' || true)"
   if [ -z "$port" ]; then
     yellow "检测到 3x-ui（$bin）但读取设置失败；请确认面板已初始化，或手动传 --xui-url / --xui-token。"
     return 0

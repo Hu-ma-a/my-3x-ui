@@ -629,8 +629,40 @@ export async function render(root, ctx) {
   }
 
   async function testXui(btn) {
-    const resultBox = wrap.querySelector('#a-xui-result');
+    let resultBox = wrap.querySelector('#a-xui-result');
     if (!resultBox) return;
+
+    // 测试前先把当前表单保存下来，避免“填了但没保存就去测试”仍然用旧配置。
+    const form = wrap.querySelector('#a-settings-form');
+    if (form) {
+      clearErrors(form);
+      const payload = collect(form);
+      if (!validate(form, payload)) {
+        ctx.toast('请先检查表单填写', 'error');
+        const first = form.querySelector('.a-invalid');
+        if (first) first.focus();
+        return;
+      }
+      const previousCurrency = String(value('portal.currency') || 'CNY').toUpperCase();
+      const nextCurrency = String(payload['portal.currency'] || 'CNY').toUpperCase();
+      btn.disabled = true;
+      btn.textContent = '保存并测试中…';
+      try {
+        await ctx.api.admin.updateSettings(payload);
+        if (nextCurrency !== previousCurrency) ui.setCurrency(nextCurrency);
+        await load();
+      } catch (err) {
+        if (handleAuthError(ctx, err)) return;
+        ctx.toast(err && err.message ? `保存设置失败：${err.message}` : '保存设置失败，请稍后重试', 'error');
+        btn.disabled = false;
+        btn.textContent = '测试连接';
+        return;
+      }
+      resultBox = wrap.querySelector('#a-xui-result');
+      btn = wrap.querySelector('[data-act="test-xui"]');
+      if (!resultBox || !btn) return;
+    }
+
     resultBox.innerHTML = `<div class="loading-block">${ui.spinner()}<span>正在测试连接…</span></div>`;
     btn.disabled = true;
     btn.textContent = '测试中…';

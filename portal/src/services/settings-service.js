@@ -148,6 +148,18 @@ function normalizeValue(def, rawValue) {
       }
       return String(value);
     }
+    case 'providerCsv': {
+      const items = String(rawValue ?? '')
+        .split(',')
+        .map((item) => item.trim())
+        .filter(Boolean);
+      for (const item of items) {
+        if (!PROVIDER_META[item] || item === 'balance') {
+          throw errors.validation(`${def.label} 包含未知支付方式：${item}`);
+        }
+      }
+      return items.join(',');
+    }
     case 'csv': {
       const items = String(rawValue)
         .split(',')

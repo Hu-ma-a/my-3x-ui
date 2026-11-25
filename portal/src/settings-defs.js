@@ -23,7 +23,7 @@ export function buildSettingDefs(config) {
     def('xui.username', '面板', '面板用户名（无 Token 时回退）', 'string', xui.username),
     def('xui.password', '面板', '面板密码（无 Token 时回退）', 'secret', xui.password),
     def('xui.timeoutMs', '面板', '请求超时（毫秒）', 'int', String(xui.timeoutMs)),
-    def('pay.providersEnabled', '支付', '启用的支付方式（mock,manual,epay）', 'csv', payment.providers),
+    def('pay.providersEnabled', '支付', '启用的支付方式（mock,manual,epay）', 'providerCsv', payment.providers),
     def('pay.epay.url', '支付', '易支付网关地址', 'string', epay.url),
     def('pay.epay.pid', '支付', '易支付商户 PID', 'string', epay.pid),
     def('pay.epay.key', '支付', '易支付密钥', 'secret', epay.key),

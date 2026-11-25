@@ -2,7 +2,7 @@ import * as usersModel from '../models/users.js';
 import * as ordersModel from '../models/orders.js';
 import * as sessionModel from '../models/sessions.js';
 import { hashPassword } from '../auth/password.js';
-import { errors } from '../util/errors.js';
+import { AppError, errors } from '../util/errors.js';
 import { dayStartMs, monthStartMs } from '../util/time.js';
 import { int } from '../util/validate.js';
 
@@ -203,24 +203,28 @@ export class AdminService {
   }
 
   async testXui() {
-    const client = this.xui.client();
-    const inbounds = (await client.listInbounds()) || [];
-    const panel = await client.panelSettings().catch(() => ({}));
-    return {
-      ok: true,
-      inboundCount: inbounds.length,
-      inbounds: inbounds.map((inbound) => ({
-        id: Number(inbound.id),
-        remark: inbound.remark || '',
-        protocol: inbound.protocol || '',
-        enable: inbound.enable !== false,
-      })),
-      subscription: {
-        subEnable: Boolean(panel?.subEnable),
-        subPath: panel?.subPath || '',
-        subURI: panel?.subURI || '',
-      },
-    };
+    try {
+      const client = this.xui.client();
+      const inbounds = (await client.listInbounds()) || [];
+      const panel = await client.panelSettings().catch(() => ({}));
+      return {
+        ok: true,
+        inboundCount: inbounds.length,
+        inbounds: inbounds.map((inbound) => ({
+          id: Number(inbound.id),
+          remark: inbound.remark || '',
+          protocol: inbound.protocol || '',
+          enable: inbound.enable !== false,
+        })),
+        subscription: {
+          subEnable: Boolean(panel?.subEnable),
+          subPath: panel?.subPath || '',
+          subURI: panel?.subURI || '',
+        },
+      };
+    } catch (err) {
+      throw new AppError('xui_connection_failed', `连接面板失败：${err && err.message ? err.message : '未知错误'}`, 502);
+    }
   }
 
   settingsList() {
