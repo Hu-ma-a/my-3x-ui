@@ -41,8 +41,6 @@ CREATE TABLE IF NOT EXISTS users (
 );
 CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email ON users(email) WHERE email IS NOT NULL;
 CREATE UNIQUE INDEX IF NOT EXISTS idx_users_client_email ON users(client_email) WHERE client_email IS NOT NULL;
-CREATE UNIQUE INDEX IF NOT EXISTS idx_users_uid ON users(uid);
-CREATE UNIQUE INDEX IF NOT EXISTS idx_users_invite_code ON users(invite_code);
 
 CREATE TABLE IF NOT EXISTS sessions (
   id INTEGER PRIMARY KEY AUTOINCREMENT,

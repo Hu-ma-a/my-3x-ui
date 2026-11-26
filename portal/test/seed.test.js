@@ -9,6 +9,56 @@ import { XuiMock } from '../src/integrations/xui-mock.js';
 import { createClient, expectOk, buildConfig } from './helpers.js';
 
 describe('数据库初始化与重启持久化', () => {
+  it('旧版 users 表缺少 uid / invite_code 时自动迁移且可正常启动', async () => {
+    const { config, dir } = buildConfig();
+    let app = null;
+    try {
+      const legacy = new DatabaseSync(config.dbPath);
+      legacy.exec(`CREATE TABLE users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT NOT NULL UNIQUE COLLATE NOCASE,
+        email TEXT COLLATE NOCASE,
+        password_hash TEXT NOT NULL,
+        role TEXT NOT NULL DEFAULT 'user',
+        status TEXT NOT NULL DEFAULT 'active',
+        balance_cents INTEGER NOT NULL DEFAULT 0,
+        client_email TEXT,
+        sub_id TEXT,
+        plan_id INTEGER,
+        plan_name TEXT,
+        plan_started_at INTEGER,
+        plan_expires_at INTEGER,
+        total_bytes INTEGER,
+        client_limit INTEGER,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL,
+        last_login_at INTEGER,
+        login_epoch INTEGER NOT NULL DEFAULT 0
+      )`);
+      legacy.exec(
+        "INSERT INTO users(username, password_hash, role, status, created_at, updated_at) VALUES ('legacy-user', 'x', 'user', 'active', 1, 1)",
+      );
+      legacy.close();
+
+      app = createApp({ config, logger: createLogger('error'), xuiMock: new XuiMock() });
+      const row = app.store.get("SELECT * FROM users WHERE username = 'legacy-user'");
+      assert.ok(row);
+      assert.match(row.uid, /^U[A-Z0-9]{8}$/, '旧用户应自动补 UID');
+      assert.match(row.invite_code, /^INV[A-Z0-9]{6}$/, '旧用户应自动补邀请码');
+      assert.equal(row.client_enabled, 1, '旧用户应自动补 client_enabled');
+      const uidIndex = app.store.all('PRAGMA index_list(users)').map((item) => item.name);
+      assert.ok(uidIndex.includes('idx_users_uid'));
+      assert.ok(uidIndex.includes('idx_users_invite_code'));
+    } finally {
+      if (app) await app.close();
+      try {
+        rmSync(dir, { recursive: true, force: true });
+      } catch {
+        // Windows WAL 句柄延迟释放不影响测试结果。
+      }
+    }
+  });
+
   it('重启不重复种子数据，设置修改保留', async () => {
     const { config, dir } = buildConfig();
     let app = null;
