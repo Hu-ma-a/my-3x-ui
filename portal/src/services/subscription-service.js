@@ -2,6 +2,7 @@ import { DAY_MS } from '../util/time.js';
 import { newSubId } from '../util/ids.js';
 import { errors } from '../util/errors.js';
 import { normalizeClient } from '../integrations/xui-client.js';
+import * as usersModel from '../models/users.js';
 
 const GB = 1024 * 1024 * 1024;
 const VERIFY_TOLERANCE_MS = 2 * 60 * 1000;
@@ -109,6 +110,7 @@ export class SubscriptionService {
           },
           inboundIds: target.inboundIds,
         });
+        usersModel.setClientEnabled(this.store, user.id, true);
         return;
       } catch (err) {
         // 客户端已存在（并发/重试）：改为按目标绝对值覆盖，绝不重复累加。
@@ -118,6 +120,8 @@ export class SubscriptionService {
       }
     }
     await client.updateClient(target.clientEmail, patch);
+    // 续费/开通成功后面板客户端处于启用状态，同步本地标记。
+    usersModel.setClientEnabled(this.store, user.id, true);
   }
 
   snapshotFor(user, plan, target, now = Date.now()) {

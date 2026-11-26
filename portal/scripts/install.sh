@@ -800,11 +800,11 @@ Nice=10
 EOF
   cat >"$UPDATE_TIMER" <<'EOF'
 [Unit]
-Description=Process portal update requests every 30 seconds
+Description=Process portal update requests every 60 seconds
 
 [Timer]
 OnBootSec=2min
-OnUnitActiveSec=30s
+OnUnitActiveSec=60s
 Persistent=false
 
 [Install]

@@ -47,6 +47,10 @@ export async function render(root, ctx) {
               <dl class="kv p-account-kv">
                 <dt>用户名</dt>
                 <dd>${ctx.ui.escape(user.username || '—')}</dd>
+                <dt>用户 UID</dt>
+                <dd class="mono">${ctx.ui.escape(user.uid || '—')}</dd>
+                <dt>我的邀请码</dt>
+                <dd class="mono">${ctx.ui.escape(user.inviteCode || '—')}${user.inviteCode ? ' <button type="button" class="link-btn" id="p-copy-invite">复制</button>' : ''}</dd>
                 <dt>邮箱</dt>
                 <dd>${user.email ? ctx.ui.escape(user.email) : '未设置'}</dd>
                 <dt>注册时间</dt>
@@ -131,6 +135,16 @@ export async function render(root, ctx) {
     bindPasswordToggle(root.querySelector('[data-eye="p-account-current"]'), currentInput);
     bindPasswordToggle(root.querySelector('[data-eye="p-account-new"]'), newInput);
     bindPasswordToggle(root.querySelector('[data-eye="p-account-confirm"]'), confirmInput);
+
+    const copyInvite = root.querySelector('#p-copy-invite');
+    if (copyInvite) {
+      copyInvite.addEventListener('click', async () => {
+        const code = me && me.inviteCode ? me.inviteCode : '';
+        if (!code) return;
+        const ok = await ctx.ui.copy(code);
+        ctx.toast(ok ? '邀请码已复制' : '复制失败，请手动选择复制', ok ? 'success' : 'error');
+      });
+    }
 
     function setError(name, message) {
       const el = root.querySelector(`[data-error="${name}"]`);

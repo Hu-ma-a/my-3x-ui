@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { after, before, describe, it } from 'node:test';
 
-import { startTestApp, expectOk, expectError } from './helpers.js';
+import { startTestApp, createClient, expectOk, expectError } from './helpers.js';
 
 describe('认证', () => {
   let app;
@@ -142,6 +142,30 @@ describe('认证', () => {
     expectError(await client.post('/api/auth/login', { username: 'alice', password: 'password123' }), 'invalid_credentials', '旧密码');
     const data = await client.login('alice', 'password456');
     assert.equal(data.user.username, 'alice');
+  });
+
+  it('注册可选邀请码：有效邀请码记录邀请人，无效邀请码拒绝注册', async () => {
+    const inviterClient = createClient(app.baseUrl);
+    const inviter = await inviterClient.register('invite-owner', 'password123');
+    assert.match(inviter.user.inviteCode, /^INV[A-Z0-9]{6}$/);
+
+    const invitedClient = createClient(app.baseUrl);
+    const invited = await invitedClient.register('invite-guest', 'password123', '', inviter.user.inviteCode.toLowerCase());
+    assert.equal(invited.user.invitedBy, inviter.user.id, '应记录邀请人 ID');
+
+    const badClient = createClient(app.baseUrl);
+    const captcha = await badClient.captcha();
+    expectError(
+      await badClient.post('/api/auth/register', {
+        username: 'invite-bad',
+        password: 'password123',
+        captchaId: captcha.captchaId,
+        captchaAnswer: captcha.captchaAnswer,
+        inviteCode: 'INV000000',
+      }),
+      'validation_error',
+      '无效邀请码',
+    );
   });
 
   it('管理员禁用账号后无法登录', async () => {

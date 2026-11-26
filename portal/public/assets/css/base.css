@@ -1117,12 +1117,12 @@ html[data-theme='dark'] .price-card.featured {
 @keyframes badge-pulse {
   0%,
   100% {
-    opacity: 0.35;
-    box-shadow: 0 0 0 0 color-mix(in srgb, var(--pulse-color) 45%, transparent);
+    opacity: 0.4;
+    transform: scale(0.7);
   }
   50% {
     opacity: 1;
-    box-shadow: 0 0 0 5px color-mix(in srgb, var(--pulse-color) 0%, transparent);
+    transform: scale(1);
   }
 }
 /* 管理员/角色类徽标（顶栏「管理员」、用户管理「管理员」、管理员页「当前登录」）同样呼吸 */

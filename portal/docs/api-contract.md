@@ -28,6 +28,9 @@
 ```json
 {
   "id": 1,
+  "uid": "U3F8K2M9Q",              // 面向用户的唯一 UID，创建时自动生成
+  "inviteCode": "INV7K3M2Q",      // 本人邀请码，注册时可填写他人邀请码
+  "invitedBy": null,               // 邀请人用户 ID（通过邀请码注册时记录）
   "username": "alice",
   "email": "alice@example.com",
   "role": "user",                 // "user" | "admin"
@@ -155,11 +158,12 @@
 → `data = {"captchaId":"…","question":"3 + 5 = ?","expiresIn":300}`（注册前获取，5 分钟内有效，一次性使用）。
 
 ### POST /api/auth/register
-请求：`{"username":"alice","email":"a@b.com","password":"********","captchaId":"…","captchaAnswer":"8"}`
+请求：`{"username":"alice","email":"a@b.com","password":"********","captchaId":"…","captchaAnswer":"8","inviteCode":"INV7K3M2Q"}`
 - `username`：3–32 字符，仅 `a-zA-Z0-9_.-`
 - `email`：可选，合法邮箱，唯一
 - `password`：8–72 字符
 - `captchaId` / `captchaAnswer`：来自验证码接口，回答正确才能注册
+- `inviteCode`：可选，填写后记录邀请人；无效邀请码返回 `validation_error`
 成功：`200`，`data = {"user": User, "csrfToken": "…"}` 并设置会话 Cookie。
 失败码：`registration_closed`、`captcha_required`、`captcha_invalid`、`username_taken`、`email_taken`、`validation_error`。
 
@@ -239,8 +243,17 @@
 }
 ```
 
+### 管理员
+- `GET /api/admin/admins` → `{"items":[{"...User","isSelf","isSuper"}],"primaryAdminId":1,"isSuperAdmin":true,"canManageAdmins":true}`
+- 第一个管理员账号（id 最小的 admin）为最高权限：只有它可以新增/启停/删除/重置其他管理员；最高权限账号本身不可禁用或删除。
+- `POST /api/admin/admins` `{"username","password","email"}`（仅最高权限）
+- `POST /api/admin/admins/:id/status` `{"status":"active"|"disabled"}`（仅最高权限）
+- `POST /api/admin/admins/:id/password` `{"newPassword":"…"}`（仅最高权限；本人可改自己）
+- `DELETE /api/admin/admins/:id`（仅最高权限，最高权限账号不可删除）
+
 ### 用户管理
 - `GET /api/admin/users?query=&status=&page=1&pageSize=20` → `{"items":[User...],"total":…,"page":…,"pageSize":…}`
+- `POST /api/admin/users` 请求体：`{"username","password","email"}` → `data=User`（管理员创建普通用户，自动分配唯一 `uid`）
 - `GET /api/admin/users/:id` → `data={"user":User,"orders":[Order...],"live":{…同 §2.4 live}}`
 - `POST /api/admin/users/:id/status` `{"status":"active"|"disabled"}` → `data=User`（禁用同时踢下线）
 - `POST /api/admin/users/:id/balance` `{"deltaCents":1000,"note":"补偿"}` → `data=User`

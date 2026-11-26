@@ -28,6 +28,7 @@ export async function render(root, ctx) {
   const dateTime = (ms) => (ms ? ui.dateTime(ms) : '—');
 
   let items = [];
+  let canManageAdmins = false;
 
   const wrap = document.createElement('div');
   wrap.innerHTML = `<header class="page-head row-between">
@@ -35,7 +36,7 @@ export async function render(root, ctx) {
         <h1 class="page-title">管理员</h1>
         <p class="page-desc">新增管理员账号、启用或禁用管理员、重置密码；管理员可登录后台管理整个门户。</p>
       </div>
-      <button type="button" class="btn btn-primary" data-act="create">新增管理员</button>
+      <button type="button" class="btn btn-primary" data-act="create" id="a-admins-create">新增管理员</button>
     </header>
     <section class="card">
       <div class="card-head">
@@ -79,19 +80,31 @@ export async function render(root, ctx) {
   function adminRow(admin) {
     const active = admin.status === 'active';
     const self = Boolean(admin.isSelf);
+    const isSuper = Boolean(admin.isSuper);
     const statusBadge = `<span class="badge ${active ? 'badge-success' : 'badge-danger'}">${ROLE_LABEL[admin.status] || esc(admin.status)}</span>`;
     const selfBadge = self ? '<span class="badge badge-info">当前登录</span>' : '';
-    const actions = self
-      ? `<button type="button" class="link-btn" data-act="reset-password" data-id="${esc(admin.id)}" data-username="${esc(admin.username)}">修改密码</button>
-         <span class="text-sm text-muted">当前账号不可禁用或删除</span>`
-      : `<button type="button" class="link-btn${active ? ' danger' : ''}"
+    const superBadge = isSuper ? ' <span class="badge badge-warning">最高权限</span>' : '';
+    let actions = '';
+    if (isSuper) {
+      actions = self
+        ? `<button type="button" class="link-btn" data-act="reset-password" data-id="${esc(admin.id)}" data-username="${esc(admin.username)}">修改密码</button>
+           <span class="text-sm text-muted">最高权限账号不可删除或禁用</span>`
+        : '<span class="text-sm text-muted">最高权限账号，不可修改或删除</span>';
+    } else if (!canManageAdmins) {
+      actions = '<span class="text-sm text-muted">只有最高权限管理员可操作</span>';
+    } else if (self) {
+      actions = `<button type="button" class="link-btn" data-act="reset-password" data-id="${esc(admin.id)}" data-username="${esc(admin.username)}">修改密码</button>
+         <span class="text-sm text-muted">当前账号不可禁用或删除</span>`;
+    } else {
+      actions = `<button type="button" class="link-btn${active ? ' danger' : ''}"
            data-act="toggle-status" data-id="${esc(admin.id)}" data-status="${esc(admin.status)}" data-username="${esc(admin.username)}">${active ? '禁用' : '启用'}</button>
          <button type="button" class="link-btn" data-act="reset-password" data-id="${esc(admin.id)}" data-username="${esc(admin.username)}">重置密码</button>
          <button type="button" class="link-btn danger" data-act="delete" data-id="${esc(admin.id)}" data-username="${esc(admin.username)}">删除</button>`;
+    }
     return `<tr>
       <td class="mono">${esc(admin.id)}</td>
       <td>
-        <div class="a-cell-title">${esc(admin.username)} ${selfBadge}</div>
+        <div class="a-cell-title">${esc(admin.username)} ${selfBadge}${superBadge}</div>
         ${admin.email ? `<div class="a-cell-sub">${esc(admin.email)}</div>` : ''}
       </td>
       <td>${statusBadge}</td>
@@ -112,13 +125,17 @@ export async function render(root, ctx) {
     try {
       const data = (await ctx.api.admin.admins()) || {};
       items = Array.isArray(data.items) ? data.items : [];
+      canManageAdmins = Boolean(data.canManageAdmins);
+      const createBtn = wrap.querySelector('#a-admins-create');
+      if (createBtn) createBtn.classList.toggle('hidden', !canManageAdmins);
       const activeCount = items.filter((admin) => admin.status === 'active').length;
-      metaBox.textContent = `共 ${items.length} 个管理员，其中 ${activeCount} 个可用`;
+      const superAdmin = items.find((admin) => admin.isSuper);
+      metaBox.textContent = `共 ${items.length} 个管理员，其中 ${activeCount} 个可用${superAdmin ? ` · 最高权限：${superAdmin.username}` : ''}${canManageAdmins ? '' : ' · 你当前是普通管理员，仅可查看'}`;
       if (!items.length) {
         tableBox.innerHTML = ui.empty({
           title: '还没有管理员',
-          desc: '点击右上角「新增管理员」创建第一个管理员账号。',
-          actionHtml: '<button type="button" class="btn btn-primary btn-sm" data-act="create">新增管理员</button>',
+          desc: canManageAdmins ? '点击右上角「新增管理员」创建管理员账号。' : '只有最高权限管理员可以新增管理员。',
+          actionHtml: canManageAdmins ? '<button type="button" class="btn btn-primary btn-sm" data-act="create">新增管理员</button>' : '',
         });
         return;
       }

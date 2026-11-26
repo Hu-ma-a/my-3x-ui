@@ -72,11 +72,19 @@ export class AuthService {
     if (email && userModel.existsEmail(this.store, email)) {
       throw errors.conflict('email_taken', '该邮箱已被注册');
     }
+    let invitedBy = null;
+    const inviteCode = String(body?.inviteCode ?? '').trim();
+    if (inviteCode) {
+      const inviter = userModel.findByInviteCode(this.store, inviteCode);
+      if (!inviter) throw errors.validation('邀请码无效，请检查后重试');
+      invitedBy = inviter.id;
+    }
     const id = userModel.create(this.store, {
       username,
       email,
       passwordHash: hashPassword(password),
       role: 'user',
+      invitedBy,
     });
     const user = userModel.toUser(userModel.findById(this.store, id));
     const session = this.createSession(user.id, { ip, userAgent });

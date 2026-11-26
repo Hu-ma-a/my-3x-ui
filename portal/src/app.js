@@ -5,6 +5,7 @@ import { SettingsService } from './services/settings-service.js';
 import { PlanService } from './services/plan-service.js';
 import { AuthService } from './services/auth-service.js';
 import { SubscriptionService } from './services/subscription-service.js';
+import { ClientSyncService } from './services/client-sync-service.js';
 import { OrderService } from './services/order-service.js';
 import { AccountService } from './services/account-service.js';
 import { AdminService } from './services/admin-service.js';
@@ -23,18 +24,20 @@ export function createApp(options = {}) {
   const settings = new SettingsService(store, config);
   const xui = createXuiGateway({ config, settings, logger, mock: options.xuiMock || null });
   const subscription = new SubscriptionService({ store, xui, settings, logger });
-  const plans = new PlanService(store);
+  const clientSync = new ClientSyncService({ store, xui, logger });
+  const plans = new PlanService(store, clientSync);
   const auth = new AuthService({ store, settings, sessionTtlMs: config.sessionTtlMs });
   const orders = new OrderService({ store, settings, xui, subscription, logger, config });
   const account = new AccountService({ store, subscription });
-  const admin = new AdminService({ store, settings, planService: plans, orderService: orders, subscription, authService: auth, xui, logger });
+  const admin = new AdminService({ store, settings, planService: plans, orderService: orders, subscription, authService: auth, xui, logger, clientSync });
   const update = new UpdateService({ config });
   const redeem = new RedeemService({ store, logger });
 
-  const services = { store, config, logger, settings, xui, subscription, plans, auth, orders, account, admin, update, redeem };
+  const services = { store, config, logger, settings, xui, subscription, plans, auth, orders, account, admin, update, redeem, clientSync };
   const routes = createRoutes(services);
   const server = createHttpServer({ config, store, services, routes, logger });
   const retryJob = startProvisionRetryJob({ orders, logger });
+  let expiryJob = null;
 
   return {
     config,
@@ -54,9 +57,21 @@ export function createApp(options = {}) {
     },
     startMaintenance(intervalMs = 30000) {
       retryJob.start(intervalMs);
+      if (expiryJob) return;
+      // 每 5 分钟把套餐已过期的客户端在面板里禁用；unref 不阻止进程退出。
+      const run = () => {
+        clientSync.syncExpired().catch((err) => logger.warn(`同步过期客户端失败：${err.message || err}`));
+      };
+      run();
+      expiryJob = setInterval(run, 5 * 60 * 1000);
+      expiryJob.unref?.();
     },
     async close() {
       retryJob.stop();
+      if (expiryJob) {
+        clearInterval(expiryJob);
+        expiryJob = null;
+      }
       await new Promise((resolve) => {
         server.close(resolve);
         server.closeAllConnections?.();

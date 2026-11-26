@@ -44,6 +44,35 @@ describe('管理后台', () => {
     assert.equal(typeof data.recharges.totalCents, 'number');
   });
 
+  it('管理员新增用户，并自动分配唯一 UID', async () => {
+    const created = expectOk(
+      await admin.post('/api/admin/users', { username: 'created-user', password: 'password123', email: 'created@example.com' }),
+      '新增用户',
+    );
+    assert.match(created.uid, /^U[A-Z0-9]{8}$/);
+    assert.equal(created.role, 'user');
+    assert.equal(created.status, 'active');
+
+    const createdClient = createClient(app.baseUrl);
+    const logged = await createdClient.login('created-user', 'password123');
+    assert.equal(logged.user.uid, created.uid, '登录后返回同一 UID');
+
+    const list = expectOk(await admin.get('/api/admin/users?query=created-user'));
+    assert.equal(list.items[0].uid, created.uid);
+    assert.equal(typeof list.items[0].uid, 'string');
+
+    expectError(
+      await admin.post('/api/admin/users', { username: 'created-user', password: 'password123' }),
+      'username_taken',
+      '重复用户名',
+    );
+    expectError(await admin.post('/api/admin/users', { username: 'weak-user', password: '123' }), 'validation_error', '弱密码');
+
+    // 注册用户同样有 UID
+    const registered = expectOk(await user.get('/api/me'));
+    assert.match(registered.user.uid, /^U[A-Z0-9]{8}$/);
+  });
+
   it('用户列表支持搜索与详情（含实时 3x-ui 状态）', async () => {
     const list = expectOk(await admin.get('/api/admin/users?query=admin-target'));
     assert.equal(list.total, 1);
@@ -342,6 +371,64 @@ describe('管理后台', () => {
 
     expectError(await admin.delete(`/api/admin/users/${adminId}`), 'validation_error', '管理员账号不可删除');
     expectError(await admin.delete('/api/admin/users/999999'), 'user_not_found', '不存在的用户');
+  });
+
+  it('门户封禁 / 套餐停用 / 套餐过期时同步禁用面板客户端', async () => {
+    const record = () => xui.clients.get('manual-user');
+    assert.ok(record());
+    assert.equal(record().enable, true);
+
+    const list = expectOk(await admin.get('/api/admin/users?query=manual-user'));
+    const targetId = list.items[0].id;
+
+    expectOk(await admin.post(`/api/admin/users/${targetId}/status`, { status: 'banned' }), '封禁用户');
+    assert.equal(record().enable, false, '封禁后面板客户端应禁用');
+    expectOk(await admin.post(`/api/admin/users/${targetId}/status`, { status: 'active' }), '解封用户');
+    assert.equal(record().enable, true, '解封后面板客户端应恢复');
+
+    expectOk(await admin.put('/api/admin/plans/1', { enabled: false }), '停用套餐');
+    assert.equal(record().enable, false, '套餐停用后面板客户端应禁用');
+    expectOk(await admin.put('/api/admin/plans/1', { enabled: true }), '启用套餐');
+    assert.equal(record().enable, true, '套餐启用后面板客户端应恢复');
+
+    const clientSync = app.app.services.clientSync;
+    app.store.run('UPDATE users SET plan_expires_at = ? WHERE id = ?', Date.now() - 1000, targetId);
+    const changed = await clientSync.syncExpired();
+    assert.ok(changed >= 1);
+    assert.equal(record().enable, false, '套餐过期后面板客户端应禁用');
+
+    app.store.run('UPDATE users SET plan_expires_at = ? WHERE id = ?', Date.now() + 24 * 60 * 60 * 1000, targetId);
+    await clientSync.syncUser(targetId);
+    assert.equal(record().enable, true, '套餐续期后面板客户端应恢复');
+  });
+
+  it('第一个管理员为最高权限，普通管理员不能管理其他管理员', async () => {
+    const list = expectOk(await admin.get('/api/admin/admins'));
+    const superAdmin = list.items.find((item) => item.isSuper);
+    assert.ok(superAdmin);
+    assert.equal(superAdmin.id, adminId);
+    assert.equal(list.canManageAdmins, true);
+
+    const created = expectOk(
+      await admin.post('/api/admin/admins', { username: 'limited-admin', password: 'password123' }),
+      '新增普通管理员',
+    );
+    const limited = createClient(app.baseUrl);
+    await limited.login('limited-admin', 'password123');
+
+    expectError(await limited.post('/api/admin/admins', { username: 'other-admin', password: 'password123' }), 'forbidden', '普通管理员不能新增');
+    expectError(await limited.post(`/api/admin/admins/${adminId}/status`, { status: 'disabled' }), 'forbidden', '不能禁用最高权限');
+    expectError(await limited.delete(`/api/admin/admins/${adminId}`), 'forbidden', '不能删除最高权限');
+    expectError(
+      await limited.post(`/api/admin/admins/${created.id}/password`, { newPassword: 'newpassword123' }),
+      'forbidden',
+      '不能修改其他管理员',
+    );
+
+    expectError(await admin.post(`/api/admin/admins/${adminId}/status`, { status: 'disabled' }), 'validation_error', '最高权限不可禁用');
+    expectError(await admin.delete(`/api/admin/admins/${adminId}`), 'validation_error', '最高权限不可删除');
+    expectOk(await admin.post(`/api/admin/admins/${created.id}/status`, { status: 'disabled' }), '最高权限可禁用其他管理员');
+    expectOk(await admin.delete(`/api/admin/admins/${created.id}`), '最高权限可删除其他管理员');
   });
 
   it('管理员账号不能通过用户接口封禁', async () => {

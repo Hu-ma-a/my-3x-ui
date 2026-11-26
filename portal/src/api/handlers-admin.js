@@ -22,6 +22,14 @@ export function listUsers(ctx, services) {
   return services.admin.listUsers(parseListQuery(ctx));
 }
 
+export async function createUser(ctx, services) {
+  const body = await ctx.body();
+  const username = validateUsername(body);
+  const password = validatePassword(body);
+  const email = validateEmail(body);
+  return services.admin.createUser({ username, password, email });
+}
+
 export async function getUser(ctx, services) {
   return services.admin.getUser(idParam(ctx));
 }
@@ -56,7 +64,7 @@ export async function createAdmin(ctx, services) {
   const username = validateUsername(body);
   const password = validatePassword(body);
   const email = validateEmail(body);
-  return services.admin.createAdmin({ username, password, email });
+  return services.admin.createAdmin(ctx.user.id, { username, password, email });
 }
 
 export async function setAdminStatus(ctx, services) {
@@ -68,7 +76,7 @@ export async function setAdminStatus(ctx, services) {
 export async function resetAdminPassword(ctx, services) {
   const body = await ctx.body();
   const newPassword = validatePassword(body, 'newPassword', { label: '新密码' });
-  return services.admin.resetAdminPassword(idParam(ctx), newPassword);
+  return services.admin.resetAdminPassword(ctx.user.id, idParam(ctx), newPassword);
 }
 
 export function deleteAdmin(ctx, services) {

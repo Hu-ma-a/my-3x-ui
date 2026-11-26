@@ -147,9 +147,11 @@ export function createClient(baseUrl) {
       const captchaAnswer = String(match[2] === '+' ? Number(match[1]) + Number(match[3]) : Number(match[1]) - Number(match[3]));
       return { captchaId, question, captchaAnswer };
     },
-    async register(username, password, email = '') {
+    async register(username, password, email = '', inviteCode = '') {
       const captcha = await this.captcha();
-      const response = await request('POST', '/api/auth/register', { body: { username, password, email, captchaId: captcha.captchaId, captchaAnswer: captcha.captchaAnswer } });
+      const body = { username, password, email, captchaId: captcha.captchaId, captchaAnswer: captcha.captchaAnswer };
+      if (inviteCode) body.inviteCode = inviteCode;
+      const response = await request('POST', '/api/auth/register', { body });
       if (!response.json?.ok) throw new Error(`注册失败：${response.text}`);
       return response.json.data;
     },

@@ -30,6 +30,7 @@ export function createRoutes(services) {
 
     { method: 'GET', path: '/api/admin/overview', auth: 'admin', handler: wrap(adminHandlers.overview) },
     { method: 'GET', path: '/api/admin/users', auth: 'admin', handler: wrap(adminHandlers.listUsers) },
+    { method: 'POST', path: '/api/admin/users', auth: 'admin', handler: wrap(adminHandlers.createUser) },
     { method: 'GET', path: '/api/admin/users/:id', auth: 'admin', handler: wrap(adminHandlers.getUser) },
     { method: 'POST', path: '/api/admin/users/:id/status', auth: 'admin', handler: wrap(adminHandlers.setUserStatus) },
     { method: 'POST', path: '/api/admin/users/:id/balance', auth: 'admin', handler: wrap(adminHandlers.adjustBalance) },

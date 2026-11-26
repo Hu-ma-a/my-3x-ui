@@ -60,6 +60,15 @@ export async function render(root, ctx) {
               <div class="error-text" data-error="email"></div>
             </div>
             <div class="field auth-field">
+              <label class="field-label" for="p-register-invite">邀请码 <span class="optional">（选填）</span></label>
+              <div class="auth-input">
+                <span class="auth-input-icon">${AUTH_ICONS.ticket}</span>
+                <input class="input" id="p-register-invite" name="inviteCode" autocomplete="off"
+                  placeholder="填写邀请人的邀请码，可留空" maxlength="16" />
+              </div>
+              <div class="error-text" data-error="inviteCode"></div>
+            </div>
+            <div class="field auth-field">
               <label class="field-label" for="p-register-password">密码</label>
               <div class="auth-input">
                 <span class="auth-input-icon">${AUTH_ICONS.lock}</span>
@@ -111,6 +120,7 @@ export async function render(root, ctx) {
   const submit = root.querySelector('#p-register-submit');
   const usernameInput = root.querySelector('#p-register-username');
   const emailInput = root.querySelector('#p-register-email');
+  const inviteInput = root.querySelector('#p-register-invite');
   const passwordInput = root.querySelector('#p-register-password');
   const confirmInput = root.querySelector('#p-register-confirm');
   const captchaInput = root.querySelector('#p-register-captcha');
@@ -169,6 +179,9 @@ export async function render(root, ctx) {
     if (values.email && !EMAIL_PATTERN.test(values.email)) {
       errors.email = '邮箱格式不正确';
     }
+    if (values.inviteCode && values.inviteCode.length > 16) {
+      errors.inviteCode = '邀请码长度不正确';
+    }
     if (!values.password) {
       errors.password = '请输入密码';
     } else if (values.password.length < 8 || values.password.length > 72) {
@@ -191,6 +204,7 @@ export async function render(root, ctx) {
     const values = {
       username: usernameInput.value.trim(),
       email: emailInput.value.trim(),
+      inviteCode: inviteInput.value.trim(),
       password: passwordInput.value,
       confirmPassword: confirmInput.value,
       captchaAnswer: captchaInput.value.trim(),
@@ -211,6 +225,7 @@ export async function render(root, ctx) {
         captchaAnswer: values.captchaAnswer,
       };
       if (values.email) payload.email = values.email;
+      if (values.inviteCode) payload.inviteCode = values.inviteCode;
       const data = await ctx.api.register(payload);
       try {
         await ctx.refreshMe();
@@ -231,6 +246,7 @@ export async function render(root, ctx) {
       } else if (err && err.code === 'validation_error' && err.message) {
         if (err.message.includes('用户名')) setFieldError('username', err.message);
         else if (err.message.includes('邮箱')) setFieldError('email', err.message);
+        else if (err.message.includes('邀请码')) setFieldError('inviteCode', err.message);
         else if (err.message.includes('密码')) setFieldError('password', err.message);
         else formError.textContent = err.message;
       } else {

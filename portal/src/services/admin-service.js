@@ -40,7 +40,7 @@ function panelHostFromUrl(rawUrl) {
 }
 
 export class AdminService {
-  constructor({ store, settings, planService, orderService, subscription, authService, xui, logger }) {
+  constructor({ store, settings, planService, orderService, subscription, authService, xui, logger, clientSync }) {
     this.store = store;
     this.settings = settings;
     this.planService = planService;
@@ -49,6 +49,7 @@ export class AdminService {
     this.authService = authService;
     this.xui = xui;
     this.logger = logger;
+    this.clientSync = clientSync;
   }
 
   overview() {
@@ -90,6 +91,23 @@ export class AdminService {
     return { items: rows.map(usersModel.toUser), total, page, pageSize };
   }
 
+  createUser({ username, password, email = '' }) {
+    if (usersModel.existsUsername(this.store, username)) {
+      throw errors.conflict('username_taken', '该用户名已被占用');
+    }
+    if (email && usersModel.existsEmail(this.store, email)) {
+      throw errors.conflict('email_taken', '该邮箱已被占用');
+    }
+    const id = usersModel.create(this.store, {
+      username,
+      email,
+      passwordHash: hashPassword(password),
+      role: 'user',
+    });
+    this.logger?.info(`管理员创建用户 ${username}（ID ${id}）`);
+    return usersModel.toUser(usersModel.findById(this.store, id));
+  }
+
   async getUser(id) {
     const row = usersModel.findById(this.store, id);
     if (!row) throw errors.notFound('user_not_found', '用户不存在');
@@ -99,7 +117,7 @@ export class AdminService {
     return { user, orders, live };
   }
 
-  setUserStatus(id, status) {
+  async setUserStatus(id, status) {
     if (!['active', 'disabled', 'banned'].includes(status)) {
       throw errors.validation('用户状态只能是 active、disabled 或 banned');
     }
@@ -108,19 +126,41 @@ export class AdminService {
     if (row.role === 'admin') throw errors.validation('管理员账号请到「管理员」页面操作');
     usersModel.setStatus(this.store, id, status);
     if (status !== 'active') sessionModel.removeByUser(this.store, id);
+    // 门户封禁/禁用时同步禁用面板客户端；恢复时仅在套餐仍有效时重新启用。
+    if (this.clientSync) await this.clientSync.syncUser(id);
     return usersModel.toUser(usersModel.findById(this.store, id));
   }
 
+  primaryAdminId() {
+    return usersModel.primaryAdminId(this.store);
+  }
+
+  isSuperAdmin(actorId) {
+    return Number(actorId) === Number(this.primaryAdminId());
+  }
+
+  requireSuperAdmin(actorId) {
+    if (!this.isSuperAdmin(actorId)) {
+      throw errors.forbidden('只有最高权限管理员（第一个管理员账号）可以管理其他管理员');
+    }
+  }
+
   listAdmins(actorId) {
+    const primaryId = this.primaryAdminId();
     return {
       items: usersModel.listAdmins(this.store).map((row) => ({
         ...usersModel.toUser(row),
         isSelf: Number(row.id) === Number(actorId),
+        isSuper: Number(row.id) === Number(primaryId),
       })),
+      primaryAdminId: primaryId,
+      isSuperAdmin: this.isSuperAdmin(actorId),
+      canManageAdmins: this.isSuperAdmin(actorId),
     };
   }
 
-  createAdmin({ username, password, email = '' }) {
+  createAdmin(actorId, { username, password, email = '' }) {
+    this.requireSuperAdmin(actorId);
     if (usersModel.existsUsername(this.store, username)) {
       throw errors.conflict('username_taken', '该用户名已被占用');
     }
@@ -137,11 +177,15 @@ export class AdminService {
   }
 
   setAdminStatus(actorId, id, status) {
+    this.requireSuperAdmin(actorId);
     if (!['active', 'disabled'].includes(status)) {
       throw errors.validation('管理员状态只能是 active 或 disabled');
     }
     const row = usersModel.findById(this.store, id);
     if (!row || row.role !== 'admin') throw errors.notFound('admin_not_found', '管理员不存在');
+    if (Number(id) === Number(this.primaryAdminId())) {
+      throw errors.validation('第一个管理员账号为最高权限，不可禁用');
+    }
     if (Number(id) === Number(actorId) && status !== 'active') {
       throw errors.validation('不能禁用当前登录的管理员');
     }
@@ -153,7 +197,8 @@ export class AdminService {
     return { ...usersModel.toUser(usersModel.findById(this.store, id)), isSelf: Number(id) === Number(actorId) };
   }
 
-  resetAdminPassword(id, newPassword) {
+  resetAdminPassword(actorId, id, newPassword) {
+    this.requireSuperAdmin(actorId);
     const row = usersModel.findById(this.store, id);
     if (!row || row.role !== 'admin') throw errors.notFound('admin_not_found', '管理员不存在');
     this.authService.resetPasswordByAdmin(id, newPassword);
@@ -161,8 +206,12 @@ export class AdminService {
   }
 
   deleteAdmin(actorId, id) {
+    this.requireSuperAdmin(actorId);
     const row = usersModel.findById(this.store, id);
     if (!row || row.role !== 'admin') throw errors.notFound('admin_not_found', '管理员不存在');
+    if (Number(id) === Number(this.primaryAdminId())) {
+      throw errors.validation('第一个管理员账号为最高权限，不可删除');
+    }
     if (Number(id) === Number(actorId)) throw errors.validation('不能删除当前登录的管理员');
     if (row.status === 'active' && usersModel.countActiveAdmins(this.store) <= 1) {
       throw errors.validation('至少需要保留一个可用的管理员');

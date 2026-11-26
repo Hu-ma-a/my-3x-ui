@@ -4,7 +4,7 @@ import { DatabaseSync } from 'node:sqlite';
 
 import { hashPassword } from './auth/password.js';
 import { buildSettingDefs } from './settings-defs.js';
-import { newPassword } from './util/ids.js';
+import { newInviteCode, newPassword, newUid } from './util/ids.js';
 
 const SCHEMA_VERSION = 1;
 
@@ -16,6 +16,9 @@ CREATE TABLE IF NOT EXISTS schema_meta (
 
 CREATE TABLE IF NOT EXISTS users (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
+  uid TEXT,
+  invite_code TEXT,
+  invited_by INTEGER,
   username TEXT NOT NULL UNIQUE COLLATE NOCASE,
   email TEXT COLLATE NOCASE,
   password_hash TEXT NOT NULL,
@@ -23,6 +26,7 @@ CREATE TABLE IF NOT EXISTS users (
   status TEXT NOT NULL DEFAULT 'active',
   balance_cents INTEGER NOT NULL DEFAULT 0,
   client_email TEXT,
+  client_enabled INTEGER NOT NULL DEFAULT 1,
   sub_id TEXT,
   plan_id INTEGER,
   plan_name TEXT,
@@ -37,6 +41,8 @@ CREATE TABLE IF NOT EXISTS users (
 );
 CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email ON users(email) WHERE email IS NOT NULL;
 CREATE UNIQUE INDEX IF NOT EXISTS idx_users_client_email ON users(client_email) WHERE client_email IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_users_uid ON users(uid);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_users_invite_code ON users(invite_code);
 
 CREATE TABLE IF NOT EXISTS sessions (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -191,6 +197,33 @@ function ensureSchemaColumns(store) {
   if (!planColumns.includes('features')) {
     store.run("ALTER TABLE plans ADD COLUMN features TEXT NOT NULL DEFAULT ''");
   }
+  const userColumns = store.all('PRAGMA table_info(users)').map((column) => column.name);
+  if (!userColumns.includes('client_enabled')) {
+    store.run('ALTER TABLE users ADD COLUMN client_enabled INTEGER NOT NULL DEFAULT 1');
+  }
+  if (!userColumns.includes('uid')) {
+    store.run('ALTER TABLE users ADD COLUMN uid TEXT');
+    const rows = store.all("SELECT id FROM users WHERE uid IS NULL OR uid = ''");
+    for (const row of rows) {
+      let uid = newUid();
+      while (store.get('SELECT id FROM users WHERE uid = ?', uid)) uid = newUid();
+      store.run('UPDATE users SET uid = ? WHERE id = ?', uid, row.id);
+    }
+  }
+  store.run('CREATE UNIQUE INDEX IF NOT EXISTS idx_users_uid ON users(uid)');
+  if (!userColumns.includes('invite_code')) {
+    store.run('ALTER TABLE users ADD COLUMN invite_code TEXT');
+    const rows = store.all("SELECT id FROM users WHERE invite_code IS NULL OR invite_code = ''");
+    for (const row of rows) {
+      let code = newInviteCode();
+      while (store.get('SELECT id FROM users WHERE invite_code = ?', code)) code = newInviteCode();
+      store.run('UPDATE users SET invite_code = ? WHERE id = ?', code, row.id);
+    }
+  }
+  if (!userColumns.includes('invited_by')) {
+    store.run('ALTER TABLE users ADD COLUMN invited_by INTEGER');
+  }
+  store.run('CREATE UNIQUE INDEX IF NOT EXISTS idx_users_invite_code ON users(invite_code)');
 }
 
 function seedStore(store, config, logger) {

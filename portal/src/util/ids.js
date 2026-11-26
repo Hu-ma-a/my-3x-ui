@@ -25,6 +25,14 @@ export function newOrderNo(prefix = 'P') {
   return `${prefix}${stamp}${randomCode(6)}`;
 }
 
+export function newUid() {
+  return `U${randomCode(8)}`;
+}
+
+export function newInviteCode() {
+  return `INV${randomCode(6)}`;
+}
+
 export function newSubId() {
   return randomToken(16);
 }

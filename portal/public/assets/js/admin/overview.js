@@ -257,14 +257,24 @@ export async function render(root, ctx) {
 
   function startXuiAutoRefresh() {
     if (xuiTimer) return;
-    xuiTimer = setInterval(() => loadXui(null, { silent: true }), 20000);
+    xuiTimer = setInterval(() => {
+      // 页面不可见时跳过请求，避免后台标签页持续消耗 CPU / 面板 API。
+      if (document.hidden) return;
+      loadXui(null, { silent: true });
+    }, 20000);
   }
+
+  const onVisibilityChange = () => {
+    if (!document.hidden && xuiTimer) loadXui(null, { silent: true });
+  };
+  document.addEventListener('visibilitychange', onVisibilityChange);
 
   ctx.onCleanup(() => {
     if (xuiTimer) {
       clearInterval(xuiTimer);
       xuiTimer = null;
     }
+    document.removeEventListener('visibilitychange', onVisibilityChange);
   });
 
   loadStats();

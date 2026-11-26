@@ -157,26 +157,52 @@ function serveStatic(req, res, pathname, config) {
     res.end('Forbidden');
     return;
   }
-  if (!fs.existsSync(filePath) || !fs.statSync(filePath).isFile()) {
+  let stat = null;
+  try {
+    stat = fs.statSync(filePath);
+  } catch {
+    stat = null;
+  }
+  if (!stat || !stat.isFile()) {
     const fallback = path.join(publicDir, 'index.html');
-    if (!path.extname(relative) && fs.existsSync(fallback)) {
-      sendFile(req, res, fallback);
+    let fallbackStat = null;
+    try {
+      fallbackStat = fs.statSync(fallback);
+    } catch {
+      fallbackStat = null;
+    }
+    if (!path.extname(relative) && fallbackStat && fallbackStat.isFile()) {
+      sendFile(req, res, fallback, fallbackStat);
       return;
     }
     res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
     res.end('Not Found');
     return;
   }
-  sendFile(req, res, filePath);
+  sendFile(req, res, filePath, stat);
 }
 
-function sendFile(req, res, filePath) {
+function sendFile(req, res, filePath, stat = fs.statSync(filePath)) {
   const ext = path.extname(filePath).toLowerCase();
+  const etag = `W/"${stat.size.toString(16)}-${Math.floor(stat.mtimeMs).toString(16)}"`;
+  const lastModified = new Date(stat.mtimeMs).toUTCString();
   const headers = {
     'Content-Type': MIME_TYPES[ext] || 'application/octet-stream',
+    // HTML 不缓存；静态资源走协商缓存（304），避免每次刷新重复下载。
     'Cache-Control': ext === '.html' ? 'no-store' : 'no-cache',
+    ETag: etag,
+    'Last-Modified': lastModified,
   };
-  const stat = fs.statSync(filePath);
+  const ifNoneMatch = req.headers['if-none-match'];
+  const ifModifiedSince = req.headers['if-modified-since'];
+  const notModified = ifNoneMatch
+    ? String(ifNoneMatch).split(',').map((item) => item.trim()).includes(etag)
+    : Boolean(ifModifiedSince && Date.parse(ifModifiedSince) >= Math.floor(stat.mtimeMs / 1000) * 1000);
+  if (notModified) {
+    res.writeHead(304, headers);
+    res.end();
+    return;
+  }
   headers['Content-Length'] = stat.size;
   res.writeHead(200, headers);
   if (req.method === 'HEAD') {

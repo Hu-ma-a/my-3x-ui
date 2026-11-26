@@ -366,6 +366,7 @@ export async function render(root, ctx) {
   }
 
   let updateTimer = null;
+  let updatePollMs = 0;
   let updateApplyRequested = false;
   let updateCheckRequested = false;
   let updateFeedback = null;
@@ -381,14 +382,29 @@ export async function render(root, ctx) {
       clearInterval(updateTimer);
       updateTimer = null;
     }
+    updatePollMs = 0;
   }
 
-  function startUpdatePoll() {
-    if (updateTimer) return;
-    updateTimer = setInterval(() => loadUpdate(), 1000);
+  // 仅在提交更新请求后轮询；平时不轮询，降低 CPU 占用。页面隐藏时暂停。
+  function startUpdatePoll(intervalMs = 1000) {
+    if (updateTimer && updatePollMs === intervalMs) return;
+    stopUpdatePoll();
+    updatePollMs = intervalMs;
+    updateTimer = setInterval(() => {
+      if (document.hidden) return;
+      loadUpdate();
+    }, intervalMs);
   }
 
-  ctx.onCleanup(stopUpdatePoll);
+  const onVisibilityChange = () => {
+    if (!document.hidden && updateTimer) loadUpdate();
+  };
+  document.addEventListener('visibilitychange', onVisibilityChange);
+
+  ctx.onCleanup(() => {
+    stopUpdatePoll();
+    document.removeEventListener('visibilitychange', onVisibilityChange);
+  });
 
   function updateHints(status) {
     const installScript = status.installScriptPath || '/opt/portal/scripts/install.sh';
@@ -474,7 +490,9 @@ export async function render(root, ctx) {
     if (status.result?.status === 'failed') {
       rows.push(`<div class="alert alert-danger mt-2">更新/检查失败：${esc(status.result.message || '未知错误')}</div>`);
     }
-    if (status.result?.status === 'applied') {
+    const appliedFresh = status.result?.at && Date.now() - Number(status.result.at) < 2 * 60 * 1000;
+    if (status.result?.status === 'applied' && updateApplyRequested && appliedFresh) {
+      // 「更新已应用」只提示本次点过更新、且结果足够新的页面；刷新后不再显示历史提示。
       rows.push('<div class="alert alert-success mt-2">更新已应用，门户正在重启，页面稍后会自动刷新。</div>');
     }
 
@@ -534,6 +552,8 @@ export async function render(root, ctx) {
       }
     } catch (err) {
       if (handleAuthError(ctx, err)) return;
+      // 服务器重启/断连时降低轮询频率，恢复后再提速。
+      if (updateTimer) startUpdatePoll(3000);
       const updateBox = wrap.querySelector('#a-update-box');
       if (updateBox) {
         updateBox.innerHTML = `<div class="alert alert-danger">读取版本信息失败：${esc(err && err.message ? err.message : '未知错误')}</div>`;
@@ -571,7 +591,7 @@ export async function render(root, ctx) {
       ctx.toast('已提交检查请求，等待后台更新服务处理…', 'success');
       setUpdateFeedback('已提交检查请求，正在等待后台更新服务处理（通常 30 秒内完成，最长等待 90 秒）…', 'info');
       await loadUpdate();
-      startUpdatePoll();
+      startUpdatePoll(1000);
     } catch (err) {
       if (handleAuthError(ctx, err)) return;
       ctx.toast(err && err.message ? err.message : '检查更新失败', 'error');
@@ -595,7 +615,7 @@ export async function render(root, ctx) {
       await ctx.api.admin.applyUpdate();
       ctx.toast('已开始更新，请保持页面打开…', 'success');
       await loadUpdate();
-      startUpdatePoll();
+      startUpdatePoll(1000);
     } catch (err) {
       updateApplyRequested = false;
       if (handleAuthError(ctx, err)) return;

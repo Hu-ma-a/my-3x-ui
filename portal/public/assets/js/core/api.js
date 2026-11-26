@@ -94,6 +94,7 @@ export const api = {
   admin: {
     overview: () => request('GET', '/api/admin/overview'),
     users: (query) => request('GET', '/api/admin/users', { query }),
+    createUser: (body) => request('POST', '/api/admin/users', { body }),
     user: (id) => request('GET', `/api/admin/users/${id}`),
     setUserStatus: (id, status) => request('POST', `/api/admin/users/${id}/status`, { body: { status } }),
     adjustBalance: (id, deltaCents, note) => request('POST', `/api/admin/users/${id}/balance`, { body: { deltaCents, note } }),

@@ -11,8 +11,9 @@ function assertPlan(data) {
 }
 
 export class PlanService {
-  constructor(store) {
+  constructor(store, clientSync = null) {
     this.store = store;
+    this.clientSync = clientSync;
   }
 
   listEnabled() {
@@ -41,18 +42,24 @@ export class PlanService {
     return this.find(id);
   }
 
-  update(id, body) {
+  async update(id, body) {
     const current = this.find(id);
     if (!current) throw errors.notFound('plan_not_found', '套餐不存在');
     const data = parsePlanBody(body, current);
     assertPlan(data);
     planModel.update(this.store, id, data);
-    return this.find(id);
+    const next = this.find(id);
+    // 套餐停用/启用时，同步该套餐下用户的 3x-ui 客户端状态。
+    if (this.clientSync && current.enabled !== next.enabled) {
+      await this.clientSync.syncPlan(id, next.enabled);
+    }
+    return next;
   }
 
-  remove(id) {
+  async remove(id) {
     const current = this.find(id);
     if (!current) throw errors.notFound('plan_not_found', '套餐不存在');
+    if (this.clientSync) await this.clientSync.syncPlan(id, false);
     if (planModel.countOrders(this.store, id) > 0) {
       planModel.disable(this.store, id);
       return { ok: true, disabled: true };

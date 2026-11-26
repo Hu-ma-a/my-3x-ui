@@ -35,7 +35,10 @@ export async function render(root, ctx) {
         <h1 class="page-title">用户管理</h1>
         <p class="page-desc">搜索用户、封禁或解封账号、调整余额与重置密码</p>
       </div>
-      <button type="button" class="btn btn-secondary" data-act="refresh">刷新列表</button>
+      <div class="row">
+        <button type="button" class="btn btn-secondary" data-act="refresh">刷新列表</button>
+        <button type="button" class="btn btn-primary" data-act="create-user">新增用户</button>
+      </div>
     </header>
     <section class="card">
       <div class="card-head">
@@ -103,14 +106,23 @@ export async function render(root, ctx) {
       ? '<span class="badge badge-info">管理员</span>'
       : `<span class="a-status-tip" title="${esc(user.lastLoginAt ? `上次登录：${dateTime(user.lastLoginAt)}（${ui.relative(user.lastLoginAt)}）` : '从未登录')}">${ui.badge(user.status)}</span>`;
     const actions = isAdmin
-      ? '<a class="link-btn" href="#/admin/admins">管理员管理</a>'
-      : `<button type="button" class="link-btn${active ? ' danger' : ''}"
-            data-act="toggle-status" data-id="${esc(user.id)}" data-status="${esc(user.status)}" data-username="${esc(user.username)}">${active ? '封禁' : '解封'}</button>
-          <button type="button" class="link-btn" data-act="adjust-balance" data-id="${esc(user.id)}">调整余额</button>
-          <button type="button" class="link-btn" data-act="reset-password" data-id="${esc(user.id)}" data-username="${esc(user.username)}">重置密码</button>
-          <button type="button" class="link-btn danger" data-act="delete-user" data-id="${esc(user.id)}" data-username="${esc(user.username)}">删除</button>`;
+      ? `<div class="a-row-actions"><div class="a-actions-group">
+           <a class="a-action" href="#/admin/admins">管理员管理</a>
+         </div></div>`
+      : `<div class="a-row-actions">
+          <div class="a-actions-group" aria-label="常规操作">
+            <button type="button" class="a-action" data-act="adjust-balance" data-id="${esc(user.id)}">调整余额</button>
+            <button type="button" class="a-action" data-act="reset-password" data-id="${esc(user.id)}" data-username="${esc(user.username)}">重置密码</button>
+          </div>
+          <div class="a-actions-group a-actions-risk" aria-label="风险操作">
+            <button type="button" class="a-action ${active ? 'a-action-warn' : 'a-action-success'}"
+              data-act="toggle-status" data-id="${esc(user.id)}" data-status="${esc(user.status)}" data-username="${esc(user.username)}">${active ? '封禁' : '解封'}</button>
+            <button type="button" class="a-action a-action-danger" data-act="delete-user" data-id="${esc(user.id)}" data-username="${esc(user.username)}">删除</button>
+          </div>
+        </div>`;
     return `<tr>
       <td class="mono">${esc(user.id)}</td>
+      <td class="mono">${esc(user.uid || '—')}${user.inviteCode ? `<div class="a-cell-sub">邀请码 ${esc(user.inviteCode)}</div>` : ''}</td>
       <td>
         <div class="a-cell-title">${esc(user.username)}</div>
         ${account ? `<div class="a-cell-sub">${esc(account)}</div>` : ''}
@@ -122,7 +134,7 @@ export async function render(root, ctx) {
       </td>
       <td>${statusCell}</td>
       <td>
-        <div class="actions">${actions}</div>
+        ${actions}
       </td>
     </tr>`;
   }
@@ -163,7 +175,7 @@ export async function render(root, ctx) {
       }
       tableBox.innerHTML = `<div class="table-wrap">
         <table class="table">
-          <thead><tr><th>ID</th><th>用户</th><th>余额</th><th>套餐</th><th>到期</th><th>状态</th><th>操作</th></tr></thead>
+          <thead><tr><th>ID</th><th>UID</th><th>用户</th><th>余额</th><th>套餐</th><th>到期</th><th>状态</th><th>操作</th></tr></thead>
           <tbody>${items.map(userRow).join('')}</tbody>
         </table>
       </div>`;
@@ -324,6 +336,47 @@ export async function render(root, ctx) {
     });
   }
 
+  function openCreateUserModal() {
+    showModal({
+      title: '新增用户',
+      okText: '创建用户',
+      bodyHtml: `<div class="grid grid-2 a-modal-grid">
+          <div class="field">
+            <label class="field-label" for="a-create-username">用户名</label>
+            <input id="a-create-username" class="input" name="username" maxlength="32" placeholder="3–32 位字母、数字或 _.-" autocomplete="off">
+          </div>
+          <div class="field">
+            <label class="field-label" for="a-create-email">邮箱 <span class="optional">（可选）</span></label>
+            <input id="a-create-email" class="input" name="email" type="email" maxlength="120" placeholder="用于找回与通知" autocomplete="off">
+          </div>
+        </div>
+        <div class="grid grid-2 a-modal-grid">
+          <div class="field">
+            <label class="field-label" for="a-create-password">初始密码</label>
+            <input id="a-create-password" class="input" name="password" type="password" maxlength="72" placeholder="8–72 位字符" autocomplete="new-password">
+          </div>
+          <div class="field">
+            <label class="field-label" for="a-create-confirm">确认密码</label>
+            <input id="a-create-confirm" class="input" name="confirmPassword" type="password" maxlength="72" placeholder="再次输入密码" autocomplete="new-password">
+          </div>
+        </div>
+        <p class="text-sm text-muted">创建后用户可直接登录门户；余额和套餐可在用户列表里继续调整。系统会自动分配唯一 UID。</p>`,
+      onSubmit: async (form) => {
+        const username = form.querySelector('[name="username"]').value.trim();
+        const email = form.querySelector('[name="email"]').value.trim();
+        const password = form.querySelector('[name="password"]').value;
+        const confirmPassword = form.querySelector('[name="confirmPassword"]').value;
+        if (!/^[a-zA-Z0-9_.-]{3,32}$/.test(username)) throw new Error('用户名需为 3–32 位字母、数字或 _.-');
+        if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error('邮箱格式不正确');
+        if (password.length < 8 || password.length > 72) throw new Error('密码长度需为 8–72 个字符');
+        if (password !== confirmPassword) throw new Error('两次输入的密码不一致');
+        const created = await ctx.api.admin.createUser({ username, email, password });
+        ctx.toast(`已创建用户「${created.username}」，UID：${created.uid}`, 'success');
+        await load();
+      },
+    });
+  }
+
   function resetFilter() {
     state.query = '';
     state.status = '';
@@ -376,6 +429,7 @@ export async function render(root, ctx) {
     if (act === 'refresh') load();
     else if (act === 'reset-filter') resetFilter();
     else if (act === 'reload') load();
+    else if (act === 'create-user') openCreateUserModal();
     else if (act === 'toggle-status') toggleStatus(btn);
     else if (act === 'adjust-balance') {
       const user = findUser(btn);
